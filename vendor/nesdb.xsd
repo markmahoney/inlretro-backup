@@ -1,0 +1,362 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <!-- Created by Martin Freij 2008 -->
+  
+  <xs:simpleType name="crc">
+    <xs:restriction base="xs:hexBinary">
+      <xs:length value="4" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="sha1">
+    <xs:restriction base="xs:hexBinary">
+      <xs:length value="20" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="ic" abstract="true">
+    <xs:sequence>
+      <xs:element name="pin" minOccurs="0" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:attribute name="number" type="xs:nonNegativeInteger" use="required" />
+          <xs:attribute name="function" type="xs:token" use="required" />
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="rom">
+    <xs:complexContent>
+      <xs:extension base="ic">
+        <xs:attribute name="id" type="xs:nonNegativeInteger" />
+        <xs:attribute name="name" type="xs:token" />
+        <xs:attribute name="size" type="xs:token" />
+        <xs:attribute name="file" type="xs:string" />
+        <xs:attribute name="crc" type="crc" />
+        <xs:attribute name="sha1" type="sha1" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="ram">
+    <xs:complexContent>
+      <xs:extension base="rom">
+        <xs:attribute name="battery" type="xs:nonNegativeInteger" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="board">
+    <xs:sequence>
+      <xs:element name="prg" type="rom" minOccurs="1" maxOccurs="unbounded">
+        <xs:unique name="prg.pin">
+          <xs:selector xpath="pin" />
+          <xs:field xpath="@number" />
+        </xs:unique>
+      </xs:element>
+      <xs:element name="chr" type="rom" minOccurs="0" maxOccurs="unbounded">
+        <xs:unique name="chr.pin">
+          <xs:selector xpath="pin" />
+          <xs:field xpath="@number" />
+        </xs:unique>
+      </xs:element>
+      <xs:element name="wram" type="ram" minOccurs="0" maxOccurs="unbounded">
+        <xs:unique name="wram.pin">
+          <xs:selector xpath="pin" />
+          <xs:field xpath="@number" />
+        </xs:unique>
+      </xs:element>
+      <xs:element name="vram" type="ram" minOccurs="0" maxOccurs="unbounded">
+        <xs:unique name="vram.pin">
+          <xs:selector xpath="pin" />
+          <xs:field xpath="@number" />
+        </xs:unique>
+      </xs:element>
+      <xs:element name="chip" minOccurs="0" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:complexContent>
+            <xs:extension base="ic">
+              <xs:attribute name="type" type="xs:token" use="required" />
+              <xs:attribute name="battery" type="xs:nonNegativeInteger" />
+            </xs:extension>
+          </xs:complexContent>
+        </xs:complexType>
+        <xs:unique name="chip.pin">
+          <xs:selector xpath="pin" />
+          <xs:field xpath="@number" />
+        </xs:unique>
+      </xs:element>
+      <xs:element name="cic" minOccurs="0" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:attribute name="type" type="xs:token" use="required" />
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="pad" minOccurs="0" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:attribute name="h" use="required">
+            <xs:simpleType>
+              <xs:restriction base="xs:integer">
+                <xs:minInclusive value="0" />
+                <xs:maxInclusive value="1" />
+              </xs:restriction>
+            </xs:simpleType>
+          </xs:attribute>
+          <xs:attribute name="v" use="required">
+            <xs:simpleType>
+              <xs:restriction base="xs:integer">
+                <xs:minInclusive value="0" />
+                <xs:maxInclusive value="1" />
+              </xs:restriction>
+            </xs:simpleType>
+          </xs:attribute>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="type" type="xs:token" />
+    <xs:attribute name="pcb" type="xs:token" />
+    <xs:attribute name="mapper">
+      <xs:simpleType>
+        <xs:restriction base="xs:integer">
+          <xs:minInclusive value="0" />
+          <xs:maxInclusive value="255" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+  </xs:complexType>
+
+  <xs:element name="database">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="game" minOccurs="0" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="peripherals" minOccurs="0">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="device" maxOccurs="unbounded">
+                      <xs:complexType>
+                        <xs:attribute name="type" use="required">
+                          <xs:simpleType>
+                            <xs:restriction base="xs:token">
+                              <!-- UNCOMMENT for type check -->
+                              <!--
+                              <xs:enumeration value="3dglasses" />
+                              <xs:enumeration value="aladdin" />
+                              <xs:enumeration value="arkanoid" />
+                              <xs:enumeration value="bandaihypershot" />
+                              <xs:enumeration value="barcodeworld" />
+                              <xs:enumeration value="battlebox" />
+                              <xs:enumeration value="crazyclimber" />
+                              <xs:enumeration value="datach" />
+                              <xs:enumeration value="doremikko" />
+                              <xs:enumeration value="excitingboxing" />
+                              <xs:enumeration value="familykeyboard" />
+                              <xs:enumeration value="familyfunfitness" />
+                              <xs:enumeration value="familytrainer" />
+                              <xs:enumeration value="fourplayer" />
+                              <xs:enumeration value="horitrack" />
+                              <xs:enumeration value="karaoke" />
+                              <xs:enumeration value="konamihypershot" />
+                              <xs:enumeration value="mahjong" />
+                              <xs:enumeration value="miraclepiano" />
+                              <xs:enumeration value="oekakidstablet" />
+                              <xs:enumeration value="pachinko" />
+                              <xs:enumeration value="partytap" />
+                              <xs:enumeration value="pokkunmoguraa" />
+                              <xs:enumeration value="powerglove" />
+                              <xs:enumeration value="powerpad" />
+                              <xs:enumeration value="racermate" />
+                              <xs:enumeration value="rob" />
+                              <xs:enumeration value="suborkeyboard" />
+                              <xs:enumeration value="subormouse" />
+                              <xs:enumeration value="topriderbike" />
+                              <xs:enumeration value="turbofile" />
+                              <xs:enumeration value="zapper" />   
+                            -->
+                            </xs:restriction>
+                          </xs:simpleType>
+                        </xs:attribute>
+                        <xs:attribute name="name" type="xs:token" />
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+                <xs:unique name="device.type">
+                  <xs:selector xpath="device" />
+                  <xs:field xpath="@type" />
+                </xs:unique>
+              </xs:element>
+              <xs:choice>
+                <xs:element name="cartridge" maxOccurs="unbounded">
+                  <xs:complexType>
+                    <xs:sequence>
+                      <xs:element name="board" type="board">
+                        <xs:unique name="cartridge.prg.id">
+                          <xs:selector xpath="prg" />
+                          <xs:field xpath="@id" />
+                        </xs:unique>
+                        <xs:unique name="cartridge.chr.id">
+                          <xs:selector xpath="chr" />
+                          <xs:field xpath="@id" />
+                        </xs:unique>
+                        <xs:unique name="cartridge.wram.id">
+                          <xs:selector xpath="wram" />
+                          <xs:field xpath="@id" />
+                        </xs:unique>
+                        <xs:unique name="cartridge.vram.id">
+                          <xs:selector xpath="vram" />
+                          <xs:field xpath="@id" />
+                        </xs:unique> 
+                      </xs:element>
+                      <xs:element name="properties" minOccurs="0">
+                        <xs:complexType>
+                          <xs:sequence>
+                            <xs:element name="property" maxOccurs="unbounded">
+                              <xs:complexType>
+                                <xs:attribute name="name" type="xs:token" use="required" />
+                                <xs:attribute name="value" type="xs:token" use="required" />
+                              </xs:complexType>
+                            </xs:element>
+                          </xs:sequence>
+                        </xs:complexType>
+                      </xs:element>
+                    </xs:sequence>
+                    <xs:attribute name="system">
+                      <xs:simpleType>
+                        <xs:restriction base="xs:token">
+                          <xs:enumeration value="Famicom" />
+                          <xs:enumeration value="NES-NTSC" />
+                          <xs:enumeration value="NES-PAL" />
+                          <xs:enumeration value="NES-PAL-A" />
+                          <xs:enumeration value="NES-PAL-B" />
+                        </xs:restriction>
+                      </xs:simpleType>
+                    </xs:attribute>
+                    <xs:attribute name="revision" type="xs:token" />
+                    <xs:attribute name="prototype" type="xs:positiveInteger" />
+                    <xs:attribute name="dumper" type="xs:token" />
+                    <xs:attribute name="datedumped" type="xs:token" />
+                    <xs:attribute name="dump" default="ok">
+                      <xs:simpleType>
+                        <xs:restriction base="xs:token">
+                          <xs:enumeration value="ok" />
+                          <xs:enumeration value="bad" />
+                          <xs:enumeration value="unknown" />
+                        </xs:restriction>
+                      </xs:simpleType>
+                    </xs:attribute>
+                    <xs:attribute name="crc" type="crc" />
+                    <xs:attribute name="sha1" type="sha1" />
+                  </xs:complexType>
+                </xs:element>
+                <xs:element name="arcade" maxOccurs="unbounded">
+                  <xs:complexType>
+                    <xs:sequence>
+                      <xs:element name="board" type="board">
+                        <xs:unique name="arcade.prg.id">
+                          <xs:selector xpath="prg" />
+                          <xs:field xpath="@id" />
+                        </xs:unique>
+                        <xs:unique name="arcade.chr.id">
+                          <xs:selector xpath="chr" />
+                          <xs:field xpath="@id" />
+                        </xs:unique>
+                        <xs:unique name="arcade.wram.id">
+                          <xs:selector xpath="wram" />
+                          <xs:field xpath="@id" />
+                        </xs:unique>
+                        <xs:unique name="arcade.vram.id">
+                          <xs:selector xpath="vram" />
+                          <xs:field xpath="@id" />
+                        </xs:unique>
+                      </xs:element>
+                      <xs:element name="properties" minOccurs="0">
+                        <xs:complexType>
+                          <xs:sequence>
+                            <xs:element name="property" maxOccurs="unbounded">
+                              <xs:complexType>
+                                <xs:attribute name="name" type="xs:token" use="required" />
+                                <xs:attribute name="value" type="xs:token" use="required" />
+                              </xs:complexType>
+                            </xs:element>
+                          </xs:sequence>
+                        </xs:complexType>
+                      </xs:element>
+                    </xs:sequence>
+                    <xs:attribute name="system" use="required">
+                      <xs:simpleType>
+                        <xs:restriction base="xs:token">
+                          <xs:enumeration value="VS-Unisystem" />
+                          <xs:enumeration value="VS-Dualsystem" />
+                          <xs:enumeration value="Playchoice-10" />
+                        </xs:restriction>
+                      </xs:simpleType>
+                    </xs:attribute>
+                    <xs:attribute name="revision" type="xs:token" />
+                    <xs:attribute name="ppu">
+                      <xs:simpleType>
+                        <xs:restriction base="xs:token">
+                          <xs:enumeration value="RP2C03B" />
+                          <xs:enumeration value="RP2C03G" />
+                          <xs:enumeration value="RP2C04-0001" />
+                          <xs:enumeration value="RP2C04-0002" />
+                          <xs:enumeration value="RP2C04-0003" />
+                          <xs:enumeration value="RP2C04-0004" />
+                          <xs:enumeration value="RC2C03B" />
+                          <xs:enumeration value="RC2C03C" />
+                          <xs:enumeration value="RC2C05-01" />
+                          <xs:enumeration value="RC2C05-02" />
+                          <xs:enumeration value="RC2C05-03" />
+                          <xs:enumeration value="RC2C05-04" />
+                          <xs:enumeration value="RC2C05-05" />
+                          <xs:enumeration value="RP2C07" />
+                        </xs:restriction>
+                      </xs:simpleType>
+                    </xs:attribute>
+                    <xs:attribute name="dumper" type="xs:token" />
+                    <xs:attribute name="datedumped" type="xs:token" />
+                    <xs:attribute name="dump" default="ok">
+                      <xs:simpleType>
+                        <xs:restriction base="xs:token">
+                          <xs:enumeration value="ok" />
+                          <xs:enumeration value="bad" />
+                          <xs:enumeration value="unknown" />
+                        </xs:restriction>
+                      </xs:simpleType>
+                    </xs:attribute>
+                    <xs:attribute name="crc" type="crc" />
+                    <xs:attribute name="sha1" type="sha1" />
+                  </xs:complexType>
+                </xs:element>
+              </xs:choice>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:token" />
+            <xs:attribute name="altname" type="xs:token" />
+            <xs:attribute name="class" type="xs:token" />
+            <xs:attribute name="subclass" type="xs:token" />
+            <xs:attribute name="catalog" type="xs:token" />
+            <xs:attribute name="publisher" type="xs:token" />
+            <xs:attribute name="developer" type="xs:token" />
+            <xs:attribute name="portdeveloper" type="xs:token" />
+            <xs:attribute name="region" type="xs:token" />
+            <xs:attribute name="players" type="xs:positiveInteger" />
+            <xs:attribute name="date" type="xs:token" />
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+      <xs:attribute name="version" type="xs:token" fixed="1.0" use="required" />
+      <xs:attribute name="conformance" default="strict">
+        <xs:simpleType>
+          <xs:restriction base="xs:token">
+            <xs:enumeration value="strict" />
+            <xs:enumeration value="loose" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="author" type="xs:token" />
+      <xs:attribute name="agent" type="xs:token" />
+      <xs:attribute name="timestamp" type="xs:token" />
+    </xs:complexType>        
+  </xs:element>
+</xs:schema> 
