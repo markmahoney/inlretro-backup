@@ -1,0 +1,4 @@
+Paul's list of needed code updates and cleanups:
+
+- Create generic host/scripts/app/dict.lua function that new dictionaries
+	can use until the point where they need custom transfer functions
