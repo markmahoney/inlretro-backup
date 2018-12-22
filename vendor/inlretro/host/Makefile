@@ -1,6 +1,6 @@
 #compiler flags: -Wall Warnings all,  -g gdb debug markings, 
 CFLAGS=-Wall -O
-LDFLAGS= -llua -lusb-1.0 -Lsource/lua
+LDFLAGS= -llua -lusb-1.0 -Lsource/lua -lm
 INCLUDE= -I ./include -I ../shared
 LDFLAGS_WINDOWS= -L ./winlib $(LDFLAGS)
 LDFLAGS_UNIX= -lm $(LDFLAGS)
@@ -34,6 +34,9 @@ all: liblua $(DEPS) $(OBJECTS)
 #sudo apt-get install libusb-1.0-0-dev
 unix: liblua $(DEPS) $(OBJECTS)
 	$(CC) $(INCLUDE) $(OBJECTS) -o $(TARGET) $(CFLAGS) $(LDFLAGS_UNIX)
+
+linux: 
+	gcc source/inlprog.c source/usb_operations.c -o inlretro -lusb-1.0 -lm -L lua include
 
 # "make debug" will build program with debug print messages
 # -DDEBUG show debug logs

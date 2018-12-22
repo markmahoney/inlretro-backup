@@ -24,3 +24,6 @@ host/inlretro
 
 # OS X Metadata
 .DS_Store
+
+# VSCode Metadata
+.vscode

@@ -22,13 +22,14 @@
 
 const char *HELP =  "Usage: inlretro [options]\n\n"\
 					"Options/Flags:\n"\
-					"  --console=console, -c console\t\t\tConsole port, {NES}\n"\
+					"  --console=console, -c console\t\t\tConsole port, {GBA,GENESIS,N64,NES}\n"\
 					"  --dump_filename=filename, -d filename\t\tIf provided, dump cartridge ROMs to this filename\n"\
 					"  --dump_ram_filename=filename, -a filename\tIf provided write ram to this filename\n"\
 					"  --help, -h\t\t\t\t\tDisplays this message.\n"\
 					"  --lua_filename=filename, -s filename\t\tIf provided, use this script for main application logic\n"\
 					"  --mapper=mapper, -m mapper\t\t\tNES console only, mapper ASIC on cartridge\n"\
-					"  \t\t\t\t\t\t{mmc1,mmc3,nrom}\n"\
+					"  \t\t\t\t\t\t{action53,bnrom,cdream,cninja,cnrom,dualport,easynsf,fme7,\n"\
+					"  \t\t\t\t\t\t mapper30,mmc1,mmc3,mmc4,mmc5,nrom,unrom}\n"\
 					"  --nes_prg_rom_size_kbyte=size, -x size_kbytes\tNES-only, size of PRG-ROM in kilobytes\n"\
 					"  --nes_chr_rom_size_kbyte=size, -y size_kbytes\tNES-only, size of CHR-ROM in kilobytes\n"\
 					"  --rom_size_mbit=size, -z size_mbits\t\tSize of ROM in megabits, non-NES systems.\n"\
@@ -64,6 +65,13 @@ int isValidROMSize(int x, int min) {
 	return ((x & (x - 1)) == 0) && x >= min;
 }
 
+// Take a mixed-case string and convert to only lowercase.
+void strToLower(char *str) {
+	while(*str) {
+		*str = tolower(*str);
+		str++;
+	}
+}
 
 // Parse options and flags, create struct to drive program.
 INLOptions* parseOptions(int argc, char *argv[]) {
@@ -159,6 +167,10 @@ INLOptions* parseOptions(int argc, char *argv[]) {
 		printf("%s", HELP);
 		return NULL;
 	}
+
+	// Handle console, mapper as case-insensitive configuration.
+	strToLower(opts->console_name);
+	strToLower(opts->mapper_name);
 	return opts;
 }
 

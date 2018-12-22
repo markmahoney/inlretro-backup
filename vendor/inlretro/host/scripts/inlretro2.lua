@@ -7,40 +7,14 @@ local function isempty(s)
     return s == nil or s == ''
 end
 
--- Wrapper for managing GBA operations.
-function gba_exec(process_opts, console_opts)
-    local gba = require "scripts.gba.basic"
-
-    -- Defensively filter out any console options that are irrelevant to GBA support.
-    local gba_opts = {
+-- Wrapper for managing operations for most consoles.
+function default_exec(process_opts, console_opts)
+    -- Defensively filter out any console options that aren't standard.
+    local default_opts = {
         rom_size_mbit = console_opts["rom_size_mbit"],
         wram_size_kb = console_opts["wram_size_kb"],
     }
-    gba.process(process_opts, gba_opts)
-end
-
--- Wrapper for managing Sega Genesis operations.
-function genesis_exec(process_opts, console_opts)
-    local genesis = require "scripts.sega.genesis_v1"
-
-    -- Defensively filter out any console options that are irrelevant to Genesis support.
-    local genesis_opts = {
-        rom_size_mbit = console_opts["rom_size_mbit"],
-        wram_size_kb = console_opts["wram_size_kb"],
-    }
-    genesis.process(process_opts, genesis_opts)
-end
-
--- Wrapper for managing N64 operations.
-function n64_exec(process_opts, console_opts)
-    local n64 = require "scripts.n64.basic"
-
-    -- Defensively filter out any console options that are irrelevant to N64 support.
-    local n64_opts = {
-        rom_size_mbit = console_opts["rom_size_mbit"],
-        wram_size_kb = console_opts["wram_size_kb"],
-    }
-    n64.process(process_opts, n64_opts)
+    console_opts["console_process_script"].process(process_opts, default_opts)
 end
 
 -- Wrapper for managing NES/Famicom operations.
@@ -71,6 +45,7 @@ function nes_exec(process_opts, console_opts)
         mmc1 = require "scripts.nes.mmc1",
         mmc3 = require "scripts.nes.mmc3",
         mmc4 = require "scripts.nes.mmc4",
+        mmc5 = require "scripts.nes.mmc5",
         nrom = require "scripts.nes.nrom",
         unrom = require "scripts.nes.unrom"
     }
@@ -79,9 +54,9 @@ function nes_exec(process_opts, console_opts)
 	dict.io("NES_INIT")	
     nes.detect_mapper_mirroring(true)
     
-    m = mappers[console_opts[mapper]]
+    m = mappers[console_opts["mapper"]]
     if m == nil then
-        print("UNSUPPORTED MAPPER")
+        print("UNSUPPORTED MAPPER: ", console_opts["mapper"])
     else
         -- Attempt requested operations with hardware!
 
@@ -99,9 +74,10 @@ function main()
     --  dump_filename:   string, filename used for writing dumped data.
     --  flash_filename:  string, filename containing data to write cartridge.
     --  verify_filename: string, filename used for writing back data written to cartridge for verification.
-    --  nes_prg_rom_size_kb:    int, size of cartridge PRG-ROM in kb.
-    --  nes_chr_rom_size_kb:    int, size of cartridge CHR-ROM in kb.
-    --  nes_wram_size_kb:       int, size of cartridge WRAM in kb.
+    --  nes_prg_rom_size_kb:    int, size of cartridge PRG-ROM in kilobytes.
+    --  nes_chr_rom_size_kb:    int, size of cartridge CHR-ROM in kilobytes.
+    --  nes_wram_size_kb:       int, size of cartridge WRAM in kilobytes.
+    --  rom_size_mbit:          int, size of cartridge ROM in megabits.
 
     -- TODO: This should probably be one level up.
     -- TODO: Ram probably needs a verify file as well?
@@ -132,7 +108,7 @@ function main()
         dump_filename = dump_filename,
         erase = do_erase,
         program = do_program,
-        program_filename = flash_filename,
+        flash_filename = flash_filename,
         verify = do_verify,
         verify_filename = verify_filename,
         dumpram = do_dumpram,
@@ -143,25 +119,31 @@ function main()
 
     -- TODO: Add SNES support, as it appears to be currently usable?
     local consoles = {
-        GBA = gba_exec,
-        GENESIS = genesis_exec,
-        NES = nes_exec,
-        N64 = n64_exec,
+        gba = default_exec,
+        genesis = default_exec,
+        n64 = default_exec,
+        nes = nes_exec,
     }
-    f = consoles[console_name]
-    if f == nil then 
-        print("UNSUPPORTED CONSOLE")
+    local console_scripts = {
+        n64 = require "scripts.n64.basic",
+        nes = require "scripts.app.nes",
+        gba = require "scripts.gba.basic",
+        genesis = require "scripts.sega.genesis_v1"
+    }
+    local console_exec = consoles[console_name]
+    local console_process_script = console_scripts[console_name]
+    if console_exec == nil then 
+        print("UNSUPPORTED CONSOLE: ", console_name)
     else
-        -- TODO: Make anything console specific a dict to make function signatures less terrible.
         local console_opts = {
             wram_size_kb = nes_wram_size_kb,
             prg_rom_size_kb = nes_prg_rom_size_kb,
             chr_rom_size_kb = nes_chr_rom_size_kb,
             rom_size_mbit = rom_size_mbit,
-            mapper = mapper,
+            console_process_script = console_process_script,
+            mapper = mapper_name,
         }
-
-        f(process_opts, console_opts)
+        console_exec(process_opts, console_opts)
     end
 end
 
