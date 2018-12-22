@@ -8,8 +8,13 @@ database = Database('vendor/xml/nesdb.xml')
 menu = Menu()
 search = Search(database)
 
-print 'Search:',
-input = raw_input()
+catalog = None
 
-suggestions = search.suggest(input)
-menu.list(suggestions)
+while(catalog == None):
+    input = raw_input("Search: ")
+    suggestions = search.suggest(input)
+    selection = menu.select_item(suggestions)
+    if selection != None:
+        catalog = search.get_catalog(selection)
+
+print(catalog)
