@@ -2,10 +2,11 @@ from fuzzywuzzy import process
 
 class Search:
     def __init__(self, database):
-        self.build_cache(database)
+        self.cache = self.__build_cache(database)
+        self.corpus = self.cache.keys()
         
-    def build_cache(self, database):
-        self.cache = {};
+    def __build_cache(self, database):
+        cache = {};
         for game in database.games():
             attrib = game.attrib
             search_name = (
@@ -16,7 +17,16 @@ class Search:
                     attrib['region'] if 'region' in attrib else 'No Region',
                     attrib['catalog'] if 'catalog' in attrib else 'No Catalog',
                 ))
-            self.cache[search_name] = attrib['catalog']
+            cache[search_name] = attrib['catalog']
+            
+        return cache
 
     def suggest(self, input):
-        return process.extractBests(input, self.cache.keys(), limit=20, score_cutoff=70)
+        suggestions = process.extractBests(input, self.corpus, limit=20, score_cutoff=70)
+        
+        # Sort by score then name (multiply score by -1 so we sort largest to smallest)
+        return sorted(suggestions, key=lambda pair: (pair[1] * -1, pair[0]))
+
+    def get_catalog(self, suggestion):
+        return self.cache[suggestion]
+

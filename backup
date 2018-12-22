@@ -10,8 +10,7 @@ search = Search(database)
 print 'Search:',
 input = raw_input()
 
-# Sort by score then name (multiply score by -1 so we sort largest to smallest)
-suggestions = sorted(search.suggest(input), key=lambda pair: (pair[1] * -1, pair[0]))
+suggestions = search.suggest(input)
 
 for suggestion in suggestions:
     print(suggestion[0])
