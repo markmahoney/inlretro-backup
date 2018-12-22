@@ -8,13 +8,15 @@ database = Database('vendor/xml/nesdb.xml')
 menu = Menu()
 search = Search(database)
 
-catalog = None
+game = None
 
-while(catalog == None):
-    input = raw_input("Search: ")
+while(game == None):
+    input = raw_input("Search for game: ")
     suggestions = search.suggest(input)
     selection = menu.select_item(suggestions)
     if selection != None:
         catalog = search.get_catalog(selection)
-
-print(catalog)
+    if catalog != None:
+        game = database.get_game(catalog)
+        
+print("%s, %s" % (game.attrib['name'], game.attrib['catalog']))

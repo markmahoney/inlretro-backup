@@ -22,14 +22,14 @@ class Menu:
         
         for idx, option in enumerate(self.options):
             # TODO: pad spaces between index and string to line things up better
-            listing = "[%i] %s" % (idx + 1, option)
+            listing = "%i. %s" % (idx + 1, option)
             print(listing)
 
         print("---------------")
-        print("[0] Redo search")
+        print("0. Redo search")
 
     def get_input(self):
-        input = raw_input(">> ")
+        input = raw_input("> ")
         try:
             selection = int(input)
             if selection < 0 or selection > len(self.options) + 1:
