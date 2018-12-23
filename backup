@@ -2,21 +2,16 @@
 
 from lib.database import Database
 from lib.menu import Menu
-from lib.search import Search
 
 database = Database('vendor/xml/nesdb.xml')
 menu = Menu()
-search = Search(database)
 
 game = None
-
 while(game == None):
     input = raw_input("Search for game: ")
-    suggestions = search.suggest(input)
+    suggestions = database.search(input)
     selection = menu.select_item(suggestions)
     if selection != None:
-        catalog = search.get_catalog(selection)
-    if catalog != None:
-        game = database.get_game(catalog)
+        game = database.get_game_for_search_string(selection)
         
 print("%s, %s" % (game.name, game.catalog))

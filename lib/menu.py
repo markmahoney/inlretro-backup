@@ -2,6 +2,7 @@ class Menu:
     def __init__(self):
         self.options = []
 
+    # Returns a user-selected search string from a list, or None if nothing is selected
     def select_item(self, options):
         selection = None
 
@@ -17,6 +18,7 @@ class Menu:
         else:
             return self.options[selection - 1]
 
+    # Render the list of options and wait for user input
     def render(self, options):
         self.options = options
         
@@ -28,11 +30,12 @@ class Menu:
         print("---------------")
         print("0. Redo search")
 
+    # Parse and validate user input
     def get_input(self):
         input = raw_input("> ")
         try:
             selection = int(input)
-            if selection < 0 or selection > len(self.options) + 1:
+            if selection < 0 or selection > len(self.options):
                 raise ValueError
             return selection
         except (ValueError, IndexError):
