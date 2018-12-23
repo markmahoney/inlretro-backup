@@ -19,4 +19,4 @@ while(game == None):
     if catalog != None:
         game = database.get_game(catalog)
         
-print("%s, %s" % (game.attrib['name'], game.attrib['catalog']))
+print("%s, %s" % (game.name, game.catalog))

@@ -1,17 +1,7 @@
-from collections import namedtuple
-
-Cartridge = namedtuple(
-    'Cartridge',
-    [
-        'console',
-        'mapper',
-        'mirroring',
-        'prgKb',
-        'chrKb',
-        'vramKb',
-    ])
-
 class INLRetro:
+    PROG = 'vendor/inlretro/inlretro'
+    SCRIPT = 'scripts/inlretro2.lua'
+
     def __init__(self, database):
         self.database = database
 

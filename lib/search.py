@@ -7,17 +7,16 @@ class Search:
         
     def __build_cache(self, database):
         cache = {};
-        for game in database.games():
-            attrib = game.attrib
+        for game in database.games:
             search_name = (
                 "%s (%s, %s, %s)"
                 % (
-                    attrib['name'],
-                    attrib['publisher'] if 'publisher' in attrib else 'No Publisher',
-                    attrib['region'] if 'region' in attrib else 'No Region',
-                    attrib['catalog'] if 'catalog' in attrib else 'No Catalog',
+                    game.name,
+                    game.publisher,
+                    game.region,
+                    game.catalog,
                 ))
-            cache[search_name] = attrib['catalog']
+            cache[search_name] = game.catalog
             
         return cache
 

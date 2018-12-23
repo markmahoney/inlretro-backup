@@ -1,13 +1,15 @@
-import xml.etree.ElementTree as ElementTree
+# import xml.etree.ElementTree as ElementTree
+from lib.parse_xml import parse_database
 
 class Database:
     def __init__(self, xml_path):
-        self.xml = ElementTree.parse(xml_path)
-        self.root = self.xml.getroot()
+        def cache_by_catalog(acc, game):
+            acc[game.catalog] = game
+            return acc
 
-    def games(self):
-        return self.root.findall('./game')
-
+        self.games = parse_database(xml_path)
+        self.catalog = reduce(cache_by_catalog, self.games, {})
+        
     def get_game(self, catalog):
-        search = "./game[@catalog='%s']" % catalog
-        return self.root.find(search)
+        return self.catalog[catalog]
+
