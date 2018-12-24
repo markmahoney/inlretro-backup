@@ -2,6 +2,8 @@
 
 from lib.database import Database
 from lib.menu import Menu
+from lib.inlretro import dump
+from os import path
 
 database = Database('vendor/xml/nesdb.xml')
 menu = Menu()
@@ -14,4 +16,8 @@ while(game == None):
     if selection != None:
         game = database.get_game_for_search_string(selection)
         
-print("%s, %s" % (game.name, game.catalog))
+print("Creating backup for %s, %s" % (game.name, game.catalog))
+
+# TODO: make a temp file for this
+bin_path = path.abspath('test.bin')
+dump(game, bin_path)
