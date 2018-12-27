@@ -2,9 +2,10 @@
 
 from lib.database import Database
 from lib.menu import Menu
-from lib.inlretro import dump
-from lib.inesheader import add_header
-from os import path
+from lib.inlretro import dump_game
+from lib.inesheader import write_with_header
+from os import close, path, remove
+from tempfile import mkstemp
 
 database = Database('vendor/xml/nesdb.xml')
 menu = Menu()
@@ -19,9 +20,15 @@ while(game == None):
         
 print("Creating backup for %s, %s" % (game.name, game.catalog))
 
-# TODO: make a temp file for this
-bin_path = path.abspath('test.bin')
-dump(game, bin_path)
+# This is a little bit awkward, because we need the INL Retro subprocess to write to
+# the tempfile first. Also: not sure if this works in Windows, but probably neither
+# does anything else in here.
+bin_fd, bin_filename = mkstemp()
+close(bin_fd)
 
-# TODO: how are we gonna get the final filename?
-add_header(game, bin_path, 'smb3.nes')
+print(bin_filename)
+dump_game(game, bin_filename)
+write_with_header(game, bin_filename, "roms/%s.nes" % game.name)
+
+# Temp file cleanup
+remove(bin_filename)

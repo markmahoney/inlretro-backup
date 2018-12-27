@@ -20,7 +20,7 @@ INES_TO_INLRETRO_MAPPERS = {
     34: 'bnrom',
 }
 
-def dump(game, dump_path):
+def dump_game(game, dump_path):
     # For now, just grab the first cartidge in the list.
     # TODO: figure out how to be less dumb about this.
     cartridge = game.cartridges[0]

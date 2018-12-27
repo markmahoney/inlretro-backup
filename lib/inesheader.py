@@ -62,7 +62,7 @@ def make_header(game):
         FLAGS_10,
     ] + HEADER_PADDING)
     
-def add_header(game, bin_path, out_path):
+def write_with_header(game, bin_path, out_path):
     print("Generating header and writing final file...")
     
     header = make_header(game)
