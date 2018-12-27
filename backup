@@ -3,6 +3,7 @@
 from lib.database import Database
 from lib.menu import Menu
 from lib.inlretro import dump
+from lib.inesheader import add_header
 from os import path
 
 database = Database('vendor/xml/nesdb.xml')
@@ -21,3 +22,6 @@ print("Creating backup for %s, %s" % (game.name, game.catalog))
 # TODO: make a temp file for this
 bin_path = path.abspath('test.bin')
 dump(game, bin_path)
+
+# TODO: how are we gonna get the final filename?
+add_header(game, bin_path, 'smb3.nes')

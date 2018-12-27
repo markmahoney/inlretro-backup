@@ -10,7 +10,7 @@ SCRIPT = 'scripts/inlretro2.lua'
 # board types map to INES mappers.
 INES_TO_INLRETRO_MAPPERS = {
     0: 'nrom',
-    1: 'mcc1',
+    1: 'mmc1',
     2: 'unrom',
     3: 'cnrom',
     4: 'mmc3',
