@@ -14,9 +14,20 @@ print("The INL Retro Cartridge Backup Helper")
 
 game = None
 while game == None:
-    input = raw_input("\nSearch for game: ")
+    try:
+        input = raw_input("\nSearch for game: ")
+    except (KeyboardInterrupt, EOFError):
+        print("\nExiting...")
+        exit(0)
+        
     suggestions = database.search(input)
-    selection = menu.select_item(suggestions)
+    
+    try:
+        selection = menu.select_item(suggestions)
+    except (KeyboardInterrupt, EOFError):
+        print("\nExiting...")
+        exit(0)
+        
     if selection != None:
         game = database.get_game_for_search_string(selection)
         

@@ -44,4 +44,4 @@ class Menu:
         except (ValueError, IndexError):
             print("Invalid selection")
             return None
-            
+
