@@ -2,6 +2,8 @@ import os
 import subprocess
 import sys
 
+DIVIDER = "=" * 60
+
 EXEC = 'vendor/inlretro/host/inlretro'
 PATH = 'vendor/inlretro/host/'
 SCRIPT = 'scripts/inlretro2.lua'
@@ -20,6 +22,7 @@ INES_TO_INLRETRO_MAPPERS = {
     34: 'bnrom',
 }
 
+# Returns True if we get an exit code of 0 after shelling out to the INL Retro, else False
 def dump_game(game, dump_path):
     # For now, just grab the first cartidge in the list.
     # TODO: figure out how to be less dumb about this.
@@ -27,8 +30,9 @@ def dump_game(game, dump_path):
     mapper = INES_TO_INLRETRO_MAPPERS[cartridge.mapper]
 
     if (mapper == None):
-        # TODO: what's the exit strategy here? Exception?
-        print("Sorry, the INLRetro currently cannot read this game!")
+        print("Sorry, the INLRetro cannot read this game.")
+        return False
+    
     else:
         args = [
             os.path.abspath(EXEC),
@@ -41,10 +45,12 @@ def dump_game(game, dump_path):
         ]
 
         print("Shelling out to INLRetro, see you on the other side...")
-        print("------------------------------------------------------")
+        print(DIVIDER)
 
         child = subprocess.Popen(args, cwd=os.path.abspath(PATH), stderr=sys.stdout)
         child.wait()
 
-        print("------------------------------------------------------")
-        print("... and we're back! We got an exit code of %d" % child.returncode)
+        print(DIVIDER)
+        print("... and we're back!")
+
+        return True if child.returncode == 0 else False

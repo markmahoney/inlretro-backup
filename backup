@@ -10,9 +10,11 @@ from tempfile import mkstemp
 database = Database('vendor/xml/nesdb.xml')
 menu = Menu()
 
+print("The INL Retro Cartridge Backup Helper")
+
 game = None
-while(game == None):
-    input = raw_input("Search for game: ")
+while game == None:
+    input = raw_input("\nSearch for game: ")
     suggestions = database.search(input)
     selection = menu.select_item(suggestions)
     if selection != None:
@@ -26,8 +28,11 @@ print("Creating backup for %s, %s" % (game.name, game.catalog))
 bin_fd, bin_filename = mkstemp()
 close(bin_fd)
 
-dump_game(game, bin_filename)
-write_with_header(game, bin_filename, "roms/%s (%s).nes" % (game.name, game.region))
+if dump_game(game, bin_filename):
+    to_filename = "roms/%s (%s).nes" % (game.name, game.region)
+    write_with_header(game, bin_filename, to_filename)
+else:
+    print("Failed to read data from the cartridge.")
 
 # Temp file cleanup
 remove(bin_filename)

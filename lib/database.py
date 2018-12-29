@@ -12,8 +12,8 @@ class Database:
                 "%s (%s, %s, %s)"
                 % (
                     game.name,
-                    game.publisher,
                     game.region,
+                    game.publisher,
                     game.catalog,
                 ))
             
