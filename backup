@@ -26,9 +26,8 @@ print("Creating backup for %s, %s" % (game.name, game.catalog))
 bin_fd, bin_filename = mkstemp()
 close(bin_fd)
 
-print(bin_filename)
 dump_game(game, bin_filename)
-write_with_header(game, bin_filename, "roms/%s.nes" % game.name)
+write_with_header(game, bin_filename, "roms/%s (%s).nes" % (game.name, game.region))
 
 # Temp file cleanup
 remove(bin_filename)

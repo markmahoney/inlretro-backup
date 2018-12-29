@@ -1,4 +1,4 @@
 venv
 .Python
 *.pyc
-roms
+roms/*.nes
