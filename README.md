@@ -1,5 +1,4 @@
 # The INL Retro Cartridge Backup Helper
-=======================================
 
 A Python-based CLI utility for creating emulatable backups from your own NES/Famicom cartridges using the [INL Retro](http://www.infiniteneslives.com/inlretro.php). The utility does the following:
 
@@ -8,7 +7,6 @@ A Python-based CLI utility for creating emulatable backups from your own NES/Fam
 3. adds an INES header to the dumped contents so that the game is emulatable
 
 ## Requirements
-===============
 
 You'll need to have `virtualenv` installed. On Unix-like systems with Python installed you should be able to do the following:
 
@@ -19,7 +17,6 @@ easy_install virtualenv
 You will also need to be able to compile the host source code for the INL Retro. That entire codebase is included as a subtree in this repo, which may or may not have been a dumb choice on my part, but regardless see the INL Retro's [README](vendor/inlretro/README) and [host Makefile unix target](vendor/inlretro/host/Makefile) for details.
 
 ## Setup
-========
 
 ```sh
 make && source venv/bin/activate
@@ -28,7 +25,6 @@ make && source venv/bin/activate
 You can run `deactivate` when you're done using the backup utility to disable virtualenv.
 
 ## Issues
-=========
 
 I don't really know Python but wanted to learn, so this code might be terrible.
 
@@ -43,7 +39,6 @@ Eventually I'd like to support backing up cartridges for other systems.
 These are early days, and also I have no idea what I'm doing!
 
 ## TODOs
-========
 
 - Support other systems besides NES/Famicom
 - Iterate on INES header generation
