@@ -22,6 +22,12 @@ You will also need to be able to compile the host source code for the INL Retro.
 make && source venv/bin/activate
 ```
 
+## Running the Thing
+
+```sh
+./backup
+```
+
 You can run `deactivate` when you're done using the backup utility to disable virtualenv.
 
 ## Issues
