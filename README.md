@@ -43,7 +43,7 @@ These are early days, and also I have no idea what I'm doing!
 - Support other systems besides NES/Famicom
 - Iterate on INES header generation
 - Make menus better
--- Collapse game region selection into a sub-menu
--- Implement menu system in `curses` maybe?
+  - Collapse game region selection into a sub-menu
+  - Implement menu system in `curses` maybe?
 - Windows support?
 - Commandline params for bypassing search with search strings or game catalog numbers, naming output files, etc.
