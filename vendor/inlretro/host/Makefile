@@ -1,6 +1,6 @@
 #compiler flags: -Wall Warnings all,  -g gdb debug markings, 
 CFLAGS=-Wall -O
-LDFLAGS= -llua -lusb-1.0 -Lsource/lua -lm
+LDFLAGS= -llua -lusb-1.0 -Lsource/lua
 INCLUDE= -I ./include -I ../shared
 LDFLAGS_WINDOWS= -L ./winlib $(LDFLAGS)
 LDFLAGS_UNIX= -lm $(LDFLAGS)
@@ -20,6 +20,8 @@ DEPS=$(OBJECTS:.o=.d)
 %.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDE) -o $@ -c $<
 
+.PHONY: clean linux macosx
+
 # TODO: Pass through platform when building liblua.
 liblua:
 	$(MAKE) -C source/lua a
@@ -35,8 +37,9 @@ all: liblua $(DEPS) $(OBJECTS)
 unix: liblua $(DEPS) $(OBJECTS)
 	$(CC) $(INCLUDE) $(OBJECTS) -o $(TARGET) $(CFLAGS) $(LDFLAGS_UNIX)
 
-linux: 
-	gcc source/inlprog.c source/usb_operations.c -o inlretro -lusb-1.0 -lm -L lua include
+# Convienience in case its not clear Unix really means not-Windows.
+linux: unix
+macosx: unix
 
 # "make debug" will build program with debug print messages
 # -DDEBUG show debug logs
@@ -49,7 +52,7 @@ unixdebug: CFLAGS += -DDEBUG -g
 unixdebug: unix
 
 #clean on unix and windows(.exe)
-.PHONY: clean
+
 clean:
 	$(MAKE) -C source/lua clean
 	rm -f $(TARGET) $(TARGET).exe $(OBJECTS) $(DEPS) $(LUAOBJ) source/lua/liblua.a
