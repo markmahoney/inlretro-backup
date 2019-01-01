@@ -2,7 +2,7 @@
 
 A Python-based CLI utility for creating emulatable backups from your own NES/Famicom cartridges using the [INL Retro](http://www.infiniteneslives.com/inlretro.php). The utility does the following:
 
-1. allows you to search the [NES Cart DB[(http://bootgod.dyndns.org:7777/) for your game (via an XML dump of the site)
+1. allows you to search the [NES Cart DB](http://bootgod.dyndns.org:7777/) for your game (via an XML dump of the site)
 2. passes cartridge settings to the INL Retro to dump the game's contents
 3. adds an INES header to the dumped contents so that the game is emulatable
 
