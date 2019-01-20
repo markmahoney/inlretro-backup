@@ -4,33 +4,57 @@ from lib.database import Database
 from lib.menu import Menu
 from lib.inlretro import dump_game
 from lib.inesheader import write_with_header
+from lib.util import input_or_exit
 from os import close, path, remove
 from tempfile import mkstemp
 
+def version_to_listing(version):
+    return "%s (%s, %s)" % (version.region, version.publisher, version.catalog)
+
+def pick_game():
+    game = None
+    
+    while game == None:
+        name_index = None
+        versions = []
+        version_index = None
+
+        # Search for games by name
+        search = input_or_exit("\nSearch for game: ")
+
+        # Search for results and have the user pick from them
+        if len(search):
+            name_suggestions = database.search(search)
+            name_index = menu.select_item_index(name_suggestions)
+
+        # If the user picked something, gather all versions of games by that name
+        if name_index != None:
+            name = name_suggestions[name_index]
+            versions = sorted(
+                database.get_games_by_name(name),
+                key=lambda game: game.region
+            )
+
+        # If there is more than one version for that name, have the user pick one
+        if len(versions) == 1:
+            game = versions[0]
+        elif len(versions) > 1:
+            print("\nWhich version of %s?" % name)
+            version_suggestions = map(version_to_listing, versions)
+            version_index = menu.select_item_index(version_suggestions)
+                
+        if version_index != None:
+            game = versions[version_index]
+
+    return game
+    
 database = Database('vendor/xml/nesdb.xml')
 menu = Menu()
 
 print("The INL Retro Cartridge Backup Helper")
 
-game = None
-while game == None:
-    try:
-        input = raw_input("\nSearch for game: ")
-    except (KeyboardInterrupt, EOFError):
-        print("\nExiting...")
-        exit(0)
-        
-    suggestions = database.search(input)
-    
-    try:
-        selection = menu.select_item(suggestions)
-    except (KeyboardInterrupt, EOFError):
-        print("\nExiting...")
-        exit(0)
-        
-    if selection != None:
-        game = database.get_game_for_search_string(selection)
-        
+game = pick_game()
+
 print("Creating backup for %s, %s" % (game.name, game.catalog))
 
 # This is a little bit awkward, because we need the INL Retro subprocess to write to

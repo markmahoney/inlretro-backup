@@ -1,4 +1,4 @@
-from lib.parse_xml import Mirroring
+from lib.defs import Mirroring
 
 # https://wiki.nesdev.com/w/index.php/INES#iNES_file_format
 HEADER_CONSTANT = [0x4E, 0x45, 0x53, 0x1A]
@@ -74,7 +74,7 @@ def write_with_header(game, bin_path, out_path):
             output.write(header)
             output.write(rom_data)
 
-    print("Done! Wrote %d total bytes to\n\t%s" % (
+    print("Done! Wrote %d total bytes to\n\t%s\n" % (
         len(header) + len(rom_data),
         out_path
     ))

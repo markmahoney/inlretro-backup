@@ -7,22 +7,16 @@ class Database:
             acc[game.catalog] = game
             return acc
 
-        def cache_by_search_string(acc, game):
-            search_name = (
-                "%s (%s, %s, %s)"
-                % (
-                    game.name,
-                    game.region,
-                    game.publisher,
-                    game.catalog,
-                ))
-            
-            acc[search_name] = game
-            return acc
+        def cache_by_name(acc, game):
+            if game.name not in acc:
+                acc[game.name] = []
 
+            acc[game.name].append(game)
+            return acc
+            
         self.games = parse_database(xml_path)
         self.catalog = reduce(cache_by_catalog, self.games, {})
-        self.search_cache = reduce(cache_by_search_string, self.games, {})
+        self.search_cache = reduce(cache_by_name, self.games, {})
         self.search_corpus = self.search_cache.keys()
 
     # Returns the set of search strings most closely matching the user input
@@ -41,9 +35,9 @@ class Database:
 
         return map(lambda pair: pair[0], ordered)
 
-    # Maps search strings to games
-    def get_game_for_search_string(self, search_string):
-        return self.search_cache[search_string]
+    # Maps game names to a set of games (usually this will cluster names across regions)
+    def get_games_by_name(self, name):
+        return self.search_cache[name] if self.search_cache[name] else []
 
     def get_game_for_catalog(self, catalog):
         return self.catalog[catalog]
