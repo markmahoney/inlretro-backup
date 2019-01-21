@@ -5,6 +5,7 @@ HEADER_CONSTANT = [0x4E, 0x45, 0x53, 0x1A]
 HEADER_PADDING = [0] * 5
 LOWER_NIB_MASK = int('00001111', 2)
 UPPER_NIB_MASK = int('11110000', 2)
+NES2 = int('00001000', 2)
 
 # Potential TODOs, possibly not worth it as they seem to have little support pre-INES 2
 PRG_RAM_SIZE = 0
@@ -46,7 +47,7 @@ def flags_7(cartridge):
 
     # TODO: support other flags? Probably not though.
     
-    return mapper_upper_nibble
+    return mapper_upper_nibble | NES2
 
 def make_header(game):
     # For now, just grab the first cartidge revision in the list.

@@ -47,6 +47,7 @@ def dump_game(game, dump_path):
         print("Shelling out to INLRetro, see you on the other side...")
         print(DIVIDER)
 
+        print(' '.join(args))
         child = subprocess.Popen(args, cwd=os.path.abspath(PATH), stderr=sys.stdout)
         child.wait()
 
