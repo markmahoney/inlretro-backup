@@ -1,6 +1,6 @@
 # The INLretro Cartridge Backup Helper
 
-A Python-based CLI utility for creating emulatable backups from your own cartridges using the [INLretro dumper-programmer](http://www.infiniteneslives.com/inlretro.php). The utility does the following:
+A Python-based CLI for creating emulatable backups from your own cartridges using the [INLretro dumper-programmer](http://www.infiniteneslives.com/inlretro.php). The utility does the following:
 
 1. searches multiple cartridge databases to auto-configure cartridge backups
 2. passes those backup params to the INLretro to dump the game's contents
@@ -36,7 +36,7 @@ The software only supports backups for Genesis/Mega Drive and NES/Famicom carts,
 
 NES/Famicom cartridge support is tethered to the mapper sets supported by the INLretro, though that list is pretty substantial at this point. However, you won't have much luck backing up weirdo games yet.
 
-As of January 27, 2019, you may also need to manually update the INLretro's firmware to a nightly verison to support cartidge types beyond NES/Famicom. If you have the 2.3 firmware installed, you can uncomment the line `fwupdate.update_firmware("../firmware/build_stm6/inlretro_stm.bin", 0x6DC, false) --nightly build` in the [host inlretro.lua file](vendor/inlretro/host/scripts/inlretro.lua), then run `inlretro` from the `vendor/inlretro/host/scripts` directory. I believe future updates to the host software will begin auto-updating firmware versions, this suggestion will be obsolete.
+As of January 27, 2019, you may also need to manually update the INLretro's firmware to a nightly verison to support cartidge types beyond NES/Famicom. If you have the 2.3 firmware installed, you can uncomment the line `fwupdate.update_firmware("../firmware/build_stm6/inlretro_stm.bin", 0x6DC, false) --nightly build` in the [host inlretro.lua file](vendor/inlretro/host/scripts/inlretro.lua), then run `inlretro` from the `vendor/inlretro/host/scripts` directory. I believe future updates to the host software will begin auto-updating firmware versions, at which point this suggestion will be obsolete.
 
 If you _don't_ have the 2.3 firmware installed, you'll have to follow directions in the [INLretro README](vendor/inlretro/README) to update to 2.3 first.
 
