@@ -9,9 +9,10 @@ CartRevision = namedtuple(
     ))
 
 class Console(Enum):
-    nes = 1
-    famicom = 2
-    genesis = 3
+    FAMICOM = 'Famicom'
+    NES = 'NES'
+    GENESIS = 'Genesis/Mega Drive'
+    N64 = 'N64'
 
 Game = namedtuple(
     'Game',
@@ -20,6 +21,7 @@ Game = namedtuple(
         'console',
         'name',
         'publisher',
+        'raw_name',   # for no-intro-based games, the unparsed game name; same as `name` for NES
         'region',
         'revisions',
     ))

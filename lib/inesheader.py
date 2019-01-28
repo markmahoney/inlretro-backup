@@ -14,36 +14,36 @@ FLAGS_10 = 0
 
 # PRG INES header value is total kb / 16kb, minimal value of 1 (I think very rarely
 # prg can be 8kb or less)
-def prg_val(cartridge):
-    return cartridge.prgKb >> 4 or 1
+def prg_val(revision):
+    return revision.prgKb >> 4 or 1
 
 # CHR INES header value is total kb / 8kb, minimal value of 1 (I think very rarely
 # chr can be 4kb)
-def chr_val(cartridge):
-    if cartridge.chrKb > 0:
-        chr = cartridge.chrKb >> 3 or 1
+def chr_val(revision):
+    if revision.chrKb > 0:
+        chr = revision.chrKb >> 3 or 1
     else:
         chr = 0
         
     return chr
 
 # Return byte representation of flags 6, as described in link above
-def flags_6(cartridge):
-    if cartridge.mirroring == Mirroring.mapper or cartridge.mirroring == Mirroring.horizontal:
+def flags_6(revision):
+    if revision.mirroring == Mirroring.mapper or revision.mirroring == Mirroring.horizontal:
         mirroring = 0
     else:
         mirroring = 1
 
     # TODO: PRG RAM flag, trainer flag (?), four screen VRAM flag.
 
-    mapper_lower_nibble = (cartridge.mapper & LOWER_NIB_MASK) << 4
+    mapper_lower_nibble = (revision.mapper & LOWER_NIB_MASK) << 4
 
     return mapper_lower_nibble | mirroring
 
 # Return byte representation of flags 7, as described in link above
-def flags_7(cartridge):
+def flags_7(revision):
     # The upper nibble already occupies the upper 4 bits, so no need to shift left here
-    mapper_upper_nibble = (cartridge.mapper & UPPER_NIB_MASK)
+    mapper_upper_nibble = (revision.mapper & UPPER_NIB_MASK)
 
     # TODO: support other flags? Probably not though.
     
@@ -51,13 +51,13 @@ def flags_7(cartridge):
 
 def make_header(game):
     # For now, just grab the first cartidge revision in the list.
-    cartridge = game.cartridges[0]
+    revision = game.revisions[0]
     
     return bytearray(HEADER_CONSTANT + [
-        prg_val(cartridge),
-        chr_val(cartridge),
-        flags_6(cartridge),
-        flags_7(cartridge),
+        prg_val(revision),
+        chr_val(revision),
+        flags_6(revision),
+        flags_7(revision),
         PRG_RAM_SIZE,
         FLAGS_9,
         FLAGS_10,

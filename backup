@@ -10,18 +10,26 @@ from os import close, path, remove
 from shutil import copyfile
 from tempfile import mkstemp
 
-def console_to_display(console):
-    if console == Console.nes:
-        return 'NES'
-    if console == Console.famicom:
-        return 'Famicom'
-    if console == Console.genesis:
-        return 'Genesis/Mega Drive'
-    
-    return 'Unknown'
+CONSOLE_OPTIONS = {
+    Console.FAMICOM: 'NES/Famicom',
+    Console.GENESIS: 'Genesis/Mega Drive',
+    Console.NES: 'NES/Famicom',
+    Console.N64: 'Nintendo 64',
+}
+
+CONSOLE_EXTENSIONS = {
+    Console.FAMICOM: 'nes',
+    Console.GENESIS: 'md',
+    Console.NES: 'nes',
+    Console.N64: 'z64',
+}    
 
 def version_to_listing(version):
-    return "%s - %s" % (version.region, console_to_display(version.console))
+    # Because of better, more granular cart info in the NES Cart DB, we can be more succint
+    if version.console == Console.NES or version.console == Console.FAMICOM:
+        return "%s - %s" % (version.region, version.console.value)
+    else:
+        return version.raw_name
 
 def pick_game():
     game = None
@@ -61,16 +69,16 @@ def pick_game():
     return game
 
 def pick_console():
-    consoles = [Console.genesis, Console.nes, Console.famicom]
-    options = map(console_to_display, consoles)
+    consoles = [Console.GENESIS, Console.NES, Console.N64]
+    options = map(lambda c: CONSOLE_OPTIONS[c], consoles)
     index = menu.select_item_index(options)
 
     return consoles[index]
 
 def get_extension(game):
-    if game.console == Console.nes or game.console == Console.famicom:
+    if game.console == Console.NES or game.console == Console.FAMICOM:
         return 'nes'
-    elif game.console == Console.genesis:
+    elif game.console == Console.GENESIS:
         return 'md'
 
     return ''
@@ -84,28 +92,34 @@ game = pick_game()
 
 print("Creating backup for %s" % game.name)
 
-# This is a little bit awkward, because we need the INL Retro subprocess to write to
+# This is a little bit awkward, because we need the INLretro subprocess to write to
 # the tempfile first if this is NES/Famicom. Also: not sure if this works in Windows,
 # but probably neither does anything else in here.
 bin_fd, bin_filename = mkstemp()
 close(bin_fd)
 
-if dump_game(game, bin_filename):
-    # NES/Famicom dumps need to write the final file with the NES2.0 header
-    to_filename = "roms/%s (%s).%s" % (game.name, game.region, get_extension(game))
+try:
+    if dump_game(game, bin_filename):
+        to_filename = "roms/%s (%s).%s" % (
+            game.name,
+            game.region,
+            CONSOLE_EXTENSIONS[game.console]
+        )
 
-    if console == Console.nes or console == Console.famicom:
-        write_with_header(game, bin_filename, to_filename)
+        # NES/Famicom dumps need to write the final file with the NES2.0 header
+        if console == Console.NES or console == Console.FAMICOM:
+            write_with_header(game, bin_filename, to_filename)
+        else:
+            copyfile(bin_filename, to_filename)
+
+            print("Wrote backup to\n\t%s" % to_filename)
+    
     else:
-        copyfile(bin_filename, to_filename)
+        print("Failed to read data from the cartridge.")
 
-    print("Wrote backup to\n\t%s" % to_filename)
-        
-else:
-    print("Failed to read data from the cartridge.")
-
-# Temp file cleanup
-if console == Console.nes or console == Console.famicom:
+finally:
+    # Temp file cleanup
     remove(bin_filename)
 
-print("\nExiting...")
+# Bye!
+print("Exiting...")

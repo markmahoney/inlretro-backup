@@ -4,6 +4,7 @@ from lib.xml_parsers import parse_nes_cart_db, parse_no_intro_db
 
 NES_DB_PATH = 'vendor/xml/nesdb.xml'
 GENESIS_DB_PATH = 'vendor/xml/Sega - Mega Drive - Genesis (20190120-191543).dat'
+N64_DB_PATH = 'vendor/xml/Nintendo - Nintendo 64 (BigEndian) (20190124-212209).dat'
 
 databases = {}
 
@@ -52,13 +53,17 @@ class NesDatabase(Database):
         return self.catalog[catalog]
 
 def get_database(console):
-    if console == Console.nes or console == Console.famicom:
-        if not Console.nes in databases:
-            databases[Console.nes] = NesDatabase(parse_nes_cart_db, NES_DB_PATH)
-        database = databases[Console.nes]
-    elif console == Console.genesis:
-        if not Console.genesis in databases:
-            databases[Console.genesis] = Database(parse_no_intro_db, GENESIS_DB_PATH)
-        database = databases[Console.genesis]
+    if console == Console.NES or console == Console.FAMICOM:
+        if not Console.NES in databases:
+            databases[Console.NES] = NesDatabase(parse_nes_cart_db, NES_DB_PATH)
+        database = databases[Console.NES]
+    elif console == Console.GENESIS:
+        if not Console.GENESIS in databases:
+            databases[Console.GENESIS] = Database(parse_no_intro_db, GENESIS_DB_PATH)
+        database = databases[Console.GENESIS]
+    elif console == Console.N64:
+        if not Console.N64 in databases:
+            databases[Console.N64] = Database(parse_no_intro_db, N64_DB_PATH)
+        database = databases[Console.N64]
         
     return database

@@ -3,6 +3,7 @@ venv
 *.pyc
 roms/*.nes
 roms/*.md
+roms/*.z64
 vendor/inlretro/host/inlretro*
 vendor/inlretro/avr_bootloader/commandline/bootloadHID
 

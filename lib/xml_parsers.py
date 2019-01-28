@@ -21,6 +21,7 @@ def parse_nes_cart_db(xml_path):
             console = console,
             name = name,
             publisher = publisher,
+            raw_name = name,
             region = region,
             revisions = revisions,
         )
@@ -31,9 +32,9 @@ def parse_nes_cart_db(xml_path):
     def parse_console(console):
         # This will catch both NTCS and PAL
         if 'NES' in console:
-            return Console.nes
+            return Console.NES
         else:
-            return Console.famicom
+            return Console.FAMICOM
 
     def parse_mirroring(pad_h, pad_v):
         if pad_h == "1":
@@ -81,7 +82,8 @@ def parse_no_intro_db(xml_path):
     TITLE_PARSER = r'^(.*?) \(([,\sa-zA-Z]+)\)'
     # Map the name of the console in the no-intro db to the console enum
     CONSOLE_NAMES = {
-        'Sega - Mega Drive - Genesis': Console.genesis
+        'Nintendo - Nintendo 64 (BigEndian)': Console.N64,
+        'Sega - Mega Drive - Genesis': Console.GENESIS,
     }
     
     def parse_console(xml):
@@ -102,6 +104,7 @@ def parse_no_intro_db(xml_path):
                 console = console,
                 name = name,
                 publisher = None,
+                raw_name = attrib['name'],
                 region = region,
                 revisions = revisions,
             )

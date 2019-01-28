@@ -23,10 +23,11 @@ INES_TO_INLRETRO_MAPPERS = {
     34: 'bnrom',
 }
 
-CONSOLE_TO_INLRETRO_CONSOLE = {
-    Console.famicom: 'nes',
-    Console.genesis: 'genesis',
-    Console.nes: 'nes',
+CONSOLE_TO_INLRETRO = {
+    Console.FAMICOM: 'nes',
+    Console.GENESIS: 'genesis',
+    Console.NES: 'nes',
+    Console.N64: 'n64',
 }
 
 def nes_args(game, dump_path):
@@ -54,15 +55,15 @@ def console_args(game, dump_path):
     revision = game.revisions[0]
 
     return [
-        '--console=%s' % CONSOLE_TO_INLRETRO_CONSOLE[game.console],
+        '--console=%s' % CONSOLE_TO_INLRETRO[game.console],
         '--rom_size_kbyte=%d' % revision.romKb,
         '--dump_filename=%s' % dump_path,
         '--lua_filename=%s' % SCRIPT,
     ]
 
-# Returns True if we get an exit code of 0 after shelling out to the INL Retro, else False
+# Returns True if we get an exit code of 0 after shelling out to the INLretro, else False
 def dump_game(game, dump_path):
-    if (game.console == Console.nes or game.console == Console.famicom):
+    if (game.console == Console.NES or game.console == Console.FAMICOM):
         cart_args = nes_args(game, dump_path)
     else:
         cart_args = console_args(game, dump_path)
@@ -70,7 +71,7 @@ def dump_game(game, dump_path):
     if cart_args:
         args = [os.path.abspath(EXEC)] + cart_args
 
-        print("Shelling out to INLRetro, see you on the other side...")
+        print("Shelling out to INLretro, see you on the other side...")
         print(DIVIDER)
 
         print(' '.join(args))
