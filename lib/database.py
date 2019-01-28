@@ -1,21 +1,21 @@
+from lib.defs import Console
 from fuzzywuzzy import fuzz, process
-from lib.parse_xml import parse_database
+from lib.xml_parsers import parse_nes_cart_db, parse_no_intro_db
+
+NES_DB_PATH = 'vendor/xml/nesdb.xml'
+GENESIS_DB_PATH = 'vendor/xml/Sega - Mega Drive - Genesis (20190120-191543).dat'
+
+databases = {}
 
 class Database:
-    def __init__(self, xml_path):
-        def cache_by_catalog(acc, game):
-            acc[game.catalog] = game
-            return acc
-
+    def __init__(self, xml_parser, xml_path):
         def cache_by_name(acc, game):
             if game.name not in acc:
                 acc[game.name] = []
-
             acc[game.name].append(game)
             return acc
-            
-        self.games = parse_database(xml_path)
-        self.catalog = reduce(cache_by_catalog, self.games, {})
+
+        self.games = xml_parser(xml_path)
         self.search_cache = reduce(cache_by_name, self.games, {})
         self.search_corpus = self.search_cache.keys()
 
@@ -37,8 +37,28 @@ class Database:
 
     # Maps game names to a set of games (usually this will cluster names across regions)
     def get_games_by_name(self, name):
-        return self.search_cache[name] if self.search_cache[name] else []
+        return self.search_cache[name] if name in self.search_cache else []
+    
+class NesDatabase(Database):
+    def __init__(self, xml_parser, xml_path):
+        def cache_by_catalog(acc, game):
+            acc[game.catalog] = game
+            return acc
+
+        Database.__init__(self, xml_parser, xml_path)
+        self.catalog = reduce(cache_by_catalog, self.games, {})
 
     def get_game_for_catalog(self, catalog):
         return self.catalog[catalog]
 
+def get_database(console):
+    if console == Console.nes or console == Console.famicom:
+        if not Console.nes in databases:
+            databases[Console.nes] = NesDatabase(parse_nes_cart_db, NES_DB_PATH)
+        database = databases[Console.nes]
+    elif console == Console.genesis:
+        if not Console.genesis in databases:
+            databases[Console.genesis] = Database(parse_no_intro_db, GENESIS_DB_PATH)
+        database = databases[Console.genesis]
+        
+    return database

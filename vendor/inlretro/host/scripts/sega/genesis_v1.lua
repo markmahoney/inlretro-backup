@@ -49,7 +49,6 @@ end
 --this function processes all user requests for this specific board/mapper
 local function process(process_opts, console_opts)
 	local file 
-	local rom_size = console_opts["rom_size_mbit"] * 128
 
     -- Initialize device i/o for SEGA
 	dict.io("IO_RESET")
@@ -73,7 +72,7 @@ local function process(process_opts, console_opts)
 		file = assert(io.open(process_opts["dump_filename"], "wb"))
 
 		--dump cart into file
-		dump_rom(file, rom_size, false)
+		dump_rom(file, console_opts["rom_size_kbyte"], false)
 
 		--close file
 		assert(file:close())

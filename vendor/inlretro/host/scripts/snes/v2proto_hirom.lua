@@ -10,6 +10,8 @@ local snes = require "scripts.app.snes"
 local apperase = require "scripts.app.erase"
 
 -- file constants
+local hirom_name = 'hirom'
+local lorom_name = 'lorom'
 
 -- local functions
 
@@ -102,12 +104,12 @@ local function dump_rom( file, start_bank, rom_size_KB, mapping, debug )
 	local KB_per_bank
 	local addr_base
 
-	if (mapping=="LOROM") then
+	if (mapping==lorom_name) then
 		KB_per_bank = 32	-- LOROM has 32KB per bank
 		addr_base = 0x80	-- $8000 LOROM
-	elseif (mapping=="HIROM") then
-		KB_per_bank = 64	-- LOROM has 32KB per bank
-		addr_base = 0x00	-- $8000 LOROM
+	elseif (mapping==hirom_name) then
+		KB_per_bank = 64	-- HIROM has 64KB per bank
+		addr_base = 0x00	-- $0000 HIROM
 	else
 		print("ERROR!! mapping:", mapping, "not supported")
 	end
@@ -126,7 +128,7 @@ local function dump_rom( file, start_bank, rom_size_KB, mapping, debug )
 		--select desired bank
 		dict.snes("SNES_SET_BANK", start_bank+read_count)
 
-		dump.dumptofile( file, KB_per_bank, addr_base, "SNESROM_PAGE", false )
+		dump.dumptofile( file, KB_per_bank, addr_base, "SNESROM_PAGE", debug )
 
 		read_count = read_count + 1
 	end
@@ -141,10 +143,10 @@ local function dump_ram( file, start_bank, ram_size_KB, mapping, debug )
 	local addr_base --A15-8 address of ram start
 
 	--determine max ram per bank and base address
-	if (mapping == "LOROM") then
+	if (mapping == lorom_name) then
 		KB_per_bank = 32	-- LOROM has 32KB per bank
 		addr_base = 0x00	-- $0000 LOROM RAM start address
-	elseif (mapping == "HIROM") then
+	elseif (mapping == hirom_name) then
 		KB_per_bank = 8		-- HIROM has 8KB per bank
 		addr_base = 0x60	-- $6000 HIROM RAM start address
 	else
@@ -170,7 +172,7 @@ local function dump_ram( file, start_bank, ram_size_KB, mapping, debug )
 		--select desired bank
 		dict.snes("SNES_SET_BANK", start_bank+read_count)
 
-		if (mapping == "LOROM") then --LOROM sram is inside /ROMSEL space
+		if (mapping == lorom_name) then --LOROM sram is inside /ROMSEL space
 			dump.dumptofile( file, KB_per_bank, addr_base, "SNESROM_PAGE", false )
 		else -- HIROM is outside of /ROMSEL space
 			dump.dumptofile( file, KB_per_bank, addr_base, "SNESSYS_PAGE", false )
@@ -237,10 +239,10 @@ local function flash_rom(file, rom_size_KB, mapping, debug)
 	local buff_size = 1      --number of bytes to write at a time
 	local cur_bank = 0
 
-	if (mapping=="LOROM") then
+	if (mapping==lorom_name) then
 		base_addr = 0x8000 --writes occur $8000-FFFF
 		bank_size = 32*1024 --SNES LOROM 32KB per ROM bank
-	elseif (mapping=="HIROM") then
+	elseif (mapping==hirom_name) then
 		base_addr = 0x0000 --writes occur $0000-FFFF
 		bank_size = 64*1024 --SNES HIROM 64KB per ROM bank
 	else
@@ -296,7 +298,7 @@ local function flash_rom(file, rom_size_KB, mapping, debug)
 		--]]
 
 		--Have the device write a banks worth of data
-		if (mapping == "LOROM") then
+		if (mapping == lorom_name) then
 			flash.write_file( file, bank_size/1024, "LOROM_3VOLT", "SNESROM", false )
 		else
 			flash.write_file( file, bank_size/1024, "HIROM_3VOLT", "SNESROM", false )
@@ -334,10 +336,10 @@ local function wr_ram(file, first_bank, ram_size_KB, mapping, debug)
 	local addr_base --A15-8 address of ram start
 
 	--determine max ram per bank and base address
-	if (mapping == "LOROM") then
+	if (mapping == lorom_name) then
 		bank_size = 32*1024	-- LOROM has 32KB per bank
 		base_addr = 0x0000	-- $0000 LOROM RAM start address
-	elseif (mapping == "HIROM") then
+	elseif (mapping == hirom_name) then
 		bank_size = 8*1024	-- HIROM has 8KB per bank
 		base_addr = 0x6000	-- $6000 HIROM RAM start address
 	else
@@ -383,7 +385,7 @@ local function wr_ram(file, first_bank, ram_size_KB, mapping, debug)
 			--wr_flash_byte(base_addr+byte_num, data, false)   --0.7KBps
 			--EASIEST FIRMWARE SPEEDUP: 5x faster, create firmware write byte function:
 			--dict.snes("FLASH_WR_3V", base_addr+byte_num, data)  --3.8KBps (5.5x faster than above)
-			if (mapping == "LOROM") then
+			if (mapping == lorom_name) then
 				dict.snes("SNES_ROM_WR", base_addr+byte_num, data)  --3.8KBps (5.5x faster than above)
 			else
 				dict.snes("SNES_SYS_WR", base_addr+byte_num, data)  --3.8KBps (5.5x faster than above)
@@ -414,27 +416,21 @@ end
 
 --Cart should be in reset state upon calling this function 
 --this function processes all user requests for this specific board/mapper
-local function process( test, read, erase, program, verify, dumpfile, flashfile, verifyfile, dumpram, writeram, ramdumpfile, ramwritefile)
-
+local function process(process_opts, console_opts)
 	local rv = nil
 	local file 
 
-	local snes_mapping = "LOROM"
-	--local snes_mapping = "HIROM"
+	local snes_mapping = console_opts["mapper"]
 
 	--local ram_size = 448 --max LOROM RAM size 32KByte * 0x70-0x7D banks
 	--local ram_size = 32 --just a single bank of LOROM RAM
 	--local ram_size = 8 --just a single bank of HIROM RAM
-	local ram_size = 2 --smallest SRAM cartridge RAM size (16kbit)
+	--local ram_size = 2 --smallest SRAM cartridge RAM size (16kbit)
+	local ram_size = console_opts["wram_size_kb"] 
+	local dumpram = process_opts["dumpram"]
+	local ramdumpfile = process_opts["dumpram_filename"]
 
-	--local rom_size = 32
-	local rom_size = 512
-	--local rom_size = 1024
-	--local rom_size = 2048
-	--local rom_size = 4096
-	--local rom_size = 8192
-	--local rom_size = 12288
-	--local rom_size = 16384
+	local rom_size = console_opts["rom_size_kbyte"]
 	
 
 	-- SNES memory map banking
@@ -448,12 +444,12 @@ local function process( test, read, erase, program, verify, dumpfile, flashfile,
 	local rombank --first bank of rom byte that contains A23-16
 	local rambank --first bank of ram
 	
-	if (snes_mapping == "LOROM") then
+	if (snes_mapping == lorom_name) then
 		-- LOROM typically sees the upper half (A15=1) of the first address 0b0000:1000_0000
 		rombank = 0x00
 		rambank = 0x70 --LOROM maps from 0x70 to 0x7D
 				--some for lower half of bank only, some for both halfs...
-	elseif (snes_mapping == "HIROM") then
+	elseif (snes_mapping == hirom_name) then
 		-- HIROM typically sees the last 4MByte as the first addresses = 0b1100:0000_0000
 		rombank = 0xC0
 		--rombank = 0x40 --second HiROM bank (slow)
@@ -502,10 +498,10 @@ local function process( test, read, erase, program, verify, dumpfile, flashfile,
 	end
 
 --dump the cart to dumpfile
-	if read then
+	if process_opts["read"] then
 		print("\nDumping SNES ROM...")
 
-		file = assert(io.open(dumpfile, "wb"))
+		file = assert(io.open(process_opts["dump_filename"], "wb"))
 
 		--dump cart into file
 		dump_rom(file, rombank, rom_size, snes_mapping, false)
@@ -516,17 +512,17 @@ local function process( test, read, erase, program, verify, dumpfile, flashfile,
 	end
 
 --erase the cart
-	if erase then
+	if process_opts["erase"] then
 
 		erase_flash()
 	end
 
 --write to wram on the cart
-	if writeram then
+	if process_opts["writeram"] then
 
 		print("\nWritting to SAVE RAM...")
 
-		file = assert(io.open(ramwritefile, "rb"))
+		file = assert(io.open(process_opts["writeram_filename"], "rb"))
 
 		--flash.write_file( file, ram_size, "NOVAR", "PRGRAM", false )
 		--flash.write_file( file, ram_size, "LOROM_3VOLT", "SNESROM", false )
@@ -540,7 +536,7 @@ local function process( test, read, erase, program, verify, dumpfile, flashfile,
 
 
 --program flashfile to the cart
-	if program then
+	if process_opts["program"] then
 
 		--open file
 		file = assert(io.open(flashfile, "rb"))
@@ -556,7 +552,7 @@ local function process( test, read, erase, program, verify, dumpfile, flashfile,
 	end
 
 --verify flashfile is on the cart
-	if verify then
+	if process_opts["verify"] then
 		print("\nPost dumping SNES ROM...")
 		--for now let's just dump the file and verify manually
 

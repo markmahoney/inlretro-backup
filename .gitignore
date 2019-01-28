@@ -2,3 +2,7 @@ venv
 .Python
 *.pyc
 roms/*.nes
+roms/*.md
+vendor/inlretro/host/inlretro*
+vendor/inlretro/avr_bootloader/commandline/bootloadHID
+

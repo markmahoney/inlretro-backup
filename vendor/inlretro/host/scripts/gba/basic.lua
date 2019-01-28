@@ -87,7 +87,7 @@ local function process(process_opts, console_opts)
 
 	local rv = nil
 	local file 
-	local rom_size = console_opts["rom_size_mbit"] * 128
+	local rom_size = console_opts["rom_size_kbyte"]
 	local wram_size = console_opts["wram_size_kb"]
 	local mirror = console_opts["mirror"]
 

@@ -1,3 +1,4 @@
+from lib.defs import Console
 import os
 import subprocess
 import sys
@@ -22,27 +23,52 @@ INES_TO_INLRETRO_MAPPERS = {
     34: 'bnrom',
 }
 
-# Returns True if we get an exit code of 0 after shelling out to the INL Retro, else False
-def dump_game(game, dump_path):
-    # For now, just grab the first cartidge in the list.
+CONSOLE_TO_INLRETRO_CONSOLE = {
+    Console.famicom: 'nes',
+    Console.genesis: 'genesis',
+    Console.nes: 'nes',
+}
+
+def nes_args(game, dump_path):
+    # For now, just grab the first revision in the list.
     # TODO: figure out how to be less dumb about this.
-    cartridge = game.cartridges[0]
-    mapper = INES_TO_INLRETRO_MAPPERS[cartridge.mapper]
+    cartridge = game.revisions[0]
+    mapper = INES_TO_INLRETRO_MAPPERS.get(cartridge.mapper, None)
 
     if (mapper == None):
         print("Sorry, the INLRetro cannot read this game.")
         return False
     
+    return [
+        '-c', 'nes',
+        '-d', dump_path,
+        '-m', mapper,
+        '-s', SCRIPT,
+        '-x', str(cartridge.prgKb),
+        '-y', str(cartridge.chrKb),
+    ]
+
+def console_args(game, dump_path):
+    # For now, just grab the first revision in the list.
+    # TODO: figure out how to be less dumb about this.
+    revision = game.revisions[0]
+
+    return [
+        '--console=%s' % CONSOLE_TO_INLRETRO_CONSOLE[game.console],
+        '--rom_size_kbyte=%d' % revision.romKb,
+        '--dump_filename=%s' % dump_path,
+        '--lua_filename=%s' % SCRIPT,
+    ]
+
+# Returns True if we get an exit code of 0 after shelling out to the INL Retro, else False
+def dump_game(game, dump_path):
+    if (game.console == Console.nes or game.console == Console.famicom):
+        cart_args = nes_args(game, dump_path)
     else:
-        args = [
-            os.path.abspath(EXEC),
-            '-c', 'nes',
-            '-d', dump_path,
-            '-m', mapper,
-            '-s', SCRIPT,
-            '-x', str(cartridge.prgKb),
-            '-y', str(cartridge.chrKb),
-        ]
+        cart_args = console_args(game, dump_path)
+
+    if cart_args:
+        args = [os.path.abspath(EXEC)] + cart_args
 
         print("Shelling out to INLRetro, see you on the other side...")
         print(DIVIDER)
@@ -55,3 +81,5 @@ def dump_game(game, dump_path):
         print("... and we're back!")
 
         return True if child.returncode == 0 else False
+    else:
+        return False

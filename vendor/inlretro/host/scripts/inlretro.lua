@@ -139,7 +139,10 @@ function main ()
 		prg_rom_size_kb = 256 * 128,	-- Size of NES PRG-ROM in KByte
 		chr_rom_size_kb = 8,			-- Size of NES CHR-ROM in KByte
 		wram_size_kb = 0,				-- Size of NES PRG-RAM/WRAM in KByte
-		rom_size_mbit = 8, 				-- Size of ROM in Megabits, used for non-NES consoles.
+		rom_size_kbyte = 8 * 128, 		-- Size of ROM in kilobytes, used for non-NES consoles.
+		
+		-- If more convienient, specifying size in megabits is also supported.
+		-- rom_size_kbyte = 8, 			-- Size of ROM in megabits, used for non-NES consoles.
 	}
 
 
@@ -195,19 +198,8 @@ function main ()
 			--new SNES code 
 			
 			--SNES
-			--curcart.process( true, false, true, true, true, "ignore/dump.bin", "ignore/MMXdump.bin", "ignore/verifyout.bin")
-			--curcart.process( true, false, true, true, false, "ignore/dump.bin", "ignore/smw.sfc", "ignore/verifyout.bin")
-			--curcart.process( true, false, true, true, true, "ignore/dump.bin", "ignore/SF2.bin", "ignore/verifyout.bin")
-			--curcart.process( true, false, true, true, true, "ignore/dump.bin", "ignore/dkc.bin", "ignore/verifyout.bin")
-			--curcart.process( true, true, false, false, false, "ignore/dump.bin", "ignore/dkc_orig.bin", "ignore/verifyout.bin")
-			--curcart.process( false, false, false, false, false, "ignore/dump.bin", "ignore/smw.sfc", "ignore/verifyout.bin", true, true, "ignore/ramdump.bin", "ignore/smw_lauren.bin")
-			--curcart.process( true, true, false, false, false, "ignore/dump.bin", "ignore/hsbm_4Mbit_Lo.sfc", "ignore/verifyout.bin")
-			--curcart.process( true, false, true, true, true, "ignore/dump.bin", "ignore/hsbm_4Mbit_Lo.sfc", "ignore/verifyout.bin")
-			--curcart.process( true, false, true, true, true, "ignore/dump.bin", "ignore/hsbm_4Mbit_Hi.sfc", "ignore/verifyout.bin")
-			--curcart.process( true, false, true, true, true, "ignore/dump.bin", "ignore/hsbm_32Mbit_Hi.sfc", "ignore/verifyout.bin")
-			--curcart.process( false, false, false, false, false, nil, nil, nil, true, true, "ignore/ramdump.bin", "ignore/dkc_paul.bin")
-
-
+			-- Only v2proto_hirom currently works with process_opts/console_opts.
+			curcart.process(process_opts, console_opts)
 
 			--always end with and gpio reset incase the script didn't
 			dict.io("IO_RESET")	
@@ -231,7 +223,7 @@ function main ()
 
 			dict.io("IO_RESET")	
 
-			curcart.process( true, true, false, false, false, "ignore/dump.bin", "ignore/gameboy.bin", "ignore/verifyout.bin")
+			curcart.process(process_opts, console_opts)
 			--[[	--TEST GB power
 				dict.io("GB_POWER_3V")
 				print("GBP high 3v GBA")

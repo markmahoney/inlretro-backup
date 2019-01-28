@@ -3,7 +3,7 @@ CFLAGS=-Wall -O
 LDFLAGS= -llua -lusb-1.0 -Lsource/lua
 INCLUDE= -I ./include -I ../shared
 LDFLAGS_WINDOWS= -L ./winlib $(LDFLAGS)
-LDFLAGS_UNIX= -lm $(LDFLAGS)
+LDFLAGS_UNIX= $(LDFLAGS) -lm
 CC= gcc
 
 SOURCES=$(wildcard source/*.c)

@@ -27,11 +27,14 @@ const char *HELP =  "Usage: inlretro [options]\n\n"\
 					"  --dump_ram_filename=filename, -a filename\tIf provided write ram to this filename\n"\
 					"  --help, -h\t\t\t\t\tDisplays this message.\n"\
 					"  --lua_filename=filename, -s filename\t\tIf provided, use this script for main application logic\n"\
-					"  --mapper=mapper, -m mapper\t\t\tNES console only, mapper ASIC on cartridge\n"\
-					"  \t\t\t\t\t\t{action53,bnrom,cdream,cninja,cnrom,dualport,easynsf,fme7,\n"\
-					"  \t\t\t\t\t\t mapper30,mmc1,mmc3,mmc4,mmc5,nrom,unrom}\n"\
+					"  --mapper=mapper, -m mapper\t\t\tNES, SNES, GB consoles only, mapper ASIC on cartridge\n"\
+					"  \t\t\t\t\t\tNES:\t{action53,bnrom,cdream,cninja,cnrom,dualport,easynsf,fme7,\n"\
+					"  \t\t\t\t\t\t\t mapper30,mmc1,mmc3,mmc4,mmc5,nrom,unrom}\n"\
+					"  \t\t\t\t\t\tGB:\t{mbc1,romonly}\n"\
+					"  \t\t\t\t\t\tSNES:\t{lorom,hirom}\n"\
 					"  --nes_prg_rom_size_kbyte=size, -x size_kbytes\tNES-only, size of PRG-ROM in kilobytes\n"\
 					"  --nes_chr_rom_size_kbyte=size, -y size_kbytes\tNES-only, size of CHR-ROM in kilobytes\n"\
+					"  --rom_size_kbyte=size, -k size_kbytes\t\tSize of ROM in kilobytes, non-NES systems.\n"\
 					"  --rom_size_mbit=size, -z size_mbits\t\tSize of ROM in megabits, non-NES systems.\n"\
 					"  --verify_filename=filename, -v filename\tIf provided, writeback written rom to this filename\n"\
 					"  --wram_size_kbyte=size, -w size_kbytes\tNES-only, size of WRAM in kilobytes\n"\
@@ -50,7 +53,7 @@ typedef struct {
 	int wram_size_kb;
 
 	// General Functionality
-	int rom_size_mbit;
+	int rom_size_kbyte;
 	char *dump_filename;
 	char *program_filename;
 	char *ramdump_filename;
@@ -90,6 +93,7 @@ INLOptions* parseOptions(int argc, char *argv[]) {
 		{"nes_prg_rom_size_kbyte", optional_argument, NULL, 'x'},
 		{"nes_chr_rom_size_kbyte", optional_argument, NULL, 'y'},
 		{"wram_size_kbyte", optional_argument, NULL, 'w'},
+		{"rom_size_kbyte", optional_argument, NULL, 'k'},
 		{"rom_size_mbit", optional_argument, NULL, 'z'},
 		{0, 0, 0, 0} // longopts must end in {0, 0, 0, 0}
 	};
@@ -98,6 +102,7 @@ INLOptions* parseOptions(int argc, char *argv[]) {
 	const char *FLAG_FORMAT = "a:b:hc:d:m:p:s:v:w:x:y:z:";
 	int index = 0;
 	int rv = 0;
+	int kbyte = 0;
 	opterr = 0;
 
 	// Create options struct.
@@ -123,6 +128,7 @@ INLOptions* parseOptions(int argc, char *argv[]) {
 			case 'h': opts->display_help = 1; break;
 			case 'c': opts->console_name = optarg; break;
 			case 'd': opts->dump_filename = optarg; break;
+			case 'k': opts->rom_size_kbyte = atoi(optarg); break;
 			case 'm': opts->mapper_name = optarg; break;
 			case 'p': opts->program_filename = optarg; break;
 			case 's': opts->lua_filename = optarg; break;
@@ -130,7 +136,13 @@ INLOptions* parseOptions(int argc, char *argv[]) {
 			case 'w': opts->wram_size_kb = atoi(optarg); break;
 			case 'x': opts->prg_rom_size_kb = atoi(optarg); break;
 			case 'y': opts->chr_rom_size_kb = atoi(optarg); break;
-			case 'z': opts->rom_size_mbit = atoi(optarg); break;
+			case 'z':
+				kbyte = atoi(optarg) * 128;
+				if (opts->rom_size_kbyte && opts->rom_size_kbyte != kbyte) {
+					printf("rom_size_mbit disagrees with rom_size_kbyte! Using %d Kb as rom size.\n",  kbyte);
+				}
+				opts->rom_size_kbyte = kbyte;
+				break;
 			case '?':
 				if(
 				   ( optopt == 'c' )
@@ -232,8 +244,8 @@ lua_State *lua_init(INLOptions *opts) {
 	lua_pushstring(L, opts->ramwrite_filename);
 	lua_setglobal(L, "ramwrite_filename");
 
-	lua_pushinteger(L, opts->rom_size_mbit);
-	lua_setglobal(L, "rom_size_mbit");
+	lua_pushinteger(L, opts->rom_size_kbyte);
+	lua_setglobal(L, "rom_size_kbyte");
 
 	lua_pushinteger(L, opts->wram_size_kb);
 	lua_setglobal(L, "nes_wram_size_kb");
@@ -297,7 +309,7 @@ int main(int argc, char *argv[])
 	}
 
 	// Check for sane user input.
-	if (strcmp("NES", opts->console_name) == 0) {
+	if (strcmp("nes", opts->console_name) == 0) {
 		// ROM sizes must be non-zero, power of 2, and greater than 16.
 		if (!isValidROMSize(opts->prg_rom_size_kb, 16)) {
 			printf("PRG-ROM must be non-zero power of 2, 16kb or greater.\n");
@@ -313,6 +325,19 @@ int main(int argc, char *argv[])
 		// Not having WRAM is very normal.
 		if (!isValidROMSize(opts->wram_size_kb, 8) && opts->wram_size_kb != 0) {
 			printf("WRAM must be zero or power of 2, 8kb or greater.\n");
+			return 1;
+		}
+	}
+
+	if ((strcmp("gba", opts->console_name) == 0) ||
+	    (strcmp("genesis", opts->console_name) == 0) ||
+		(strcmp("n64", opts->console_name) == 0)) {
+		if (opts->rom_size_kbyte <= 0) {
+			printf("ROM size must be greater than 0 kilobytes.\n");
+			return 1;
+		}
+		if (opts->rom_size_kbyte % 128) {
+			printf("ROM size for this system must translate into megabits with no kilobyte remainder.\n");
 			return 1;
 		}
 	}

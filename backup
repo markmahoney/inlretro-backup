@@ -1,15 +1,27 @@
 #!/usr/bin/env python
 
-from lib.database import Database
+from lib.database import get_database
+from lib.defs import Console
 from lib.menu import Menu
 from lib.inlretro import dump_game
 from lib.inesheader import write_with_header
 from lib.util import input_or_exit
 from os import close, path, remove
+from shutil import copyfile
 from tempfile import mkstemp
 
+def console_to_display(console):
+    if console == Console.nes:
+        return 'NES'
+    if console == Console.famicom:
+        return 'Famicom'
+    if console == Console.genesis:
+        return 'Genesis/Mega Drive'
+    
+    return 'Unknown'
+
 def version_to_listing(version):
-    return "%s (%s, %s)" % (version.region, version.publisher, version.catalog)
+    return "%s - %s" % (version.region, console_to_display(version.console))
 
 def pick_game():
     game = None
@@ -47,27 +59,53 @@ def pick_game():
             game = versions[version_index]
 
     return game
-    
-database = Database('vendor/xml/nesdb.xml')
-menu = Menu()
+
+def pick_console():
+    consoles = [Console.genesis, Console.nes, Console.famicom]
+    options = map(console_to_display, consoles)
+    index = menu.select_item_index(options)
+
+    return consoles[index]
+
+def get_extension(game):
+    if game.console == Console.nes or game.console == Console.famicom:
+        return 'nes'
+    elif game.console == Console.genesis:
+        return 'md'
+
+    return ''
 
 print("The INL Retro Cartridge Backup Helper")
 
+menu = Menu()
+console = pick_console()
+database = get_database(console)
 game = pick_game()
 
-print("Creating backup for %s, %s" % (game.name, game.catalog))
+print("Creating backup for %s" % game.name)
 
 # This is a little bit awkward, because we need the INL Retro subprocess to write to
-# the tempfile first. Also: not sure if this works in Windows, but probably neither
-# does anything else in here.
+# the tempfile first if this is NES/Famicom. Also: not sure if this works in Windows,
+# but probably neither does anything else in here.
 bin_fd, bin_filename = mkstemp()
 close(bin_fd)
 
 if dump_game(game, bin_filename):
-    to_filename = "roms/%s (%s).nes" % (game.name, game.region)
-    write_with_header(game, bin_filename, to_filename)
+    # NES/Famicom dumps need to write the final file with the NES2.0 header
+    to_filename = "roms/%s (%s).%s" % (game.name, game.region, get_extension(game))
+
+    if console == Console.nes or console == Console.famicom:
+        write_with_header(game, bin_filename, to_filename)
+    else:
+        copyfile(bin_filename, to_filename)
+
+    print("Wrote backup to\n\t%s" % to_filename)
+        
 else:
     print("Failed to read data from the cartridge.")
 
 # Temp file cleanup
-remove(bin_filename)
+if console == Console.nes or console == Console.famicom:
+    remove(bin_filename)
+
+print("\nExiting...")

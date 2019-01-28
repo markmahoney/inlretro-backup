@@ -1,10 +1,10 @@
-# The INL Retro Cartridge Backup Helper
+# The INLretro Cartridge Backup Helper
 
-A Python-based CLI utility for creating emulatable backups from your own NES/Famicom cartridges using the [INL Retro](http://www.infiniteneslives.com/inlretro.php). The utility does the following:
+A Python-based CLI utility for creating emulatable backups from your own cartridges using the [INLretro dumper-programmer](http://www.infiniteneslives.com/inlretro.php). The utility does the following:
 
-1. allows you to search the [NES Cart DB](http://bootgod.dyndns.org:7777/) for your game (via an XML dump of the site)
-2. passes cartridge settings to the INL Retro to dump the game's contents
-3. adds an INES header to the dumped contents so that the game is emulatable
+1. searches multiple cartridge databases to auto-configure cartridge backups
+2. passes those backup params to the INLretro to dump the game's contents
+3. for NES/Famicom games, adds an INES header to the dumped contents so that the game is emulatable
 
 ## Requirements
 
@@ -14,7 +14,7 @@ You'll need to have `virtualenv` installed. On Unix-like systems with Python ins
 easy_install virtualenv
 ```
 
-You will also need to be able to compile the host source code for the INL Retro. That entire codebase is included as a subtree in this repo, which may or may not have been a dumb choice on my part, but regardless see the INL Retro's [README](vendor/inlretro/README) and [host Makefile unix target](vendor/inlretro/host/Makefile) for details.
+You will also need to be able to compile the host source code for the INLretro. That entire codebase is included as a subtree in this repo, which may or may not have been a dumb choice on my part, but regardless, see the INLretro's [README](vendor/inlretro/README) and [host Makefile unix target](vendor/inlretro/host/Makefile) for details.
 
 ## Setup
 
@@ -30,26 +30,35 @@ make && source venv/bin/activate
 
 You can run `deactivate` when you're done using the backup utility to disable virtualenv.
 
+## Cart Support
+
+The software only supports backups for Genesis/Mega Drive and NES/Famicom carts, though support for the other consoles is coming soon.
+
+NES/Famicom cartridge support is tethered to the mapper sets supported by the INLretro, though that list is pretty substantial at this point. However, you won't have much luck backing up weirdo games yet.
+
+As of January 27, 2019, you may also need to manually update the INLretro's firmware to a nightly verison to support cartidge types beyond NES/Famicom. If you have the 2.3 firmware installed, you can uncomment the line `fwupdate.update_firmware("../firmware/build_stm6/inlretro_stm.bin", 0x6DC, false) --nightly build` in the [host inlretro.lua file](vendor/inlretro/host/scripts/inlretro.lua), then run `inlretro` from the `vendor/inlretro/host/scripts` directory. I believe future updates to the host software will begin auto-updating firmware versions, this suggestion will be obsolete.
+
+If you _don't_ have the 2.3 firmware installed, you'll have to follow directions in the [INLretro README](vendor/inlretro/README) to update to 2.3 first.
+
 ## Issues
 
-I don't really know Python but wanted to learn, so this code might be terrible.
-
-I wrote the INES header generation code myself, because I wanted to, because I'm an idiot. As a result, ~35% of the resultant game backups I've created don't seem to work in an emulator. A good example is Super Mario Bros. 3: when emulated from my own backup, it displays the curtain that reveals the game title but totally locks up after that. Caveat: I've only tried emulating my backups in [OpenEmu](https://openemu.org/). 
-
-Overall, I've had the most success dumping earlier NES games, and my testing methodology has been haphazard and extremely non-rigorous at best.
-
-Cartridge support is tethered to the mapper sets supported by the INL Retro, though that list is pretty substantial at this point. However, you won't have much luck backing up weirdo games yet.
-
-Eventually I'd like to support backing up cartridges for other systems.
-
-These are early days, and also I have no idea what I'm doing!
+- There are probably a lot of games that cannot be backed up yet. NES/Famicom in particular requires the generation of a 16-byte INES header. I wrote my own INES/NES 2.0 header generation code, and I'm still learning the ins and outs of that crazy schema.
+- The menu system is bad and I feel bad about it. I'll continue to iterate on solutions.
+- I don't really know Python but wanted to learn, so this code might be terrible.
 
 ## TODOs
 
-- Support other systems besides NES/Famicom
-- Iterate on INES header generation
-- Make menus better
-  - Collapse game region selection into a sub-menu
-  - Implement menu system in `curses` maybe?
 - Windows support?
-- Commandline params for bypassing search with search strings or game catalog numbers, naming output files, etc.
+- Improve XML parser for no-intro db systems (names/regions are sometimes inconsistent)
+- Support other systems besides NES/Famicom and Genesis/Mega Drive
+- Perform CRC checks on the backed up ROMs
+- Improve INES header generation
+- Make menus better
+  - Implement menu system in `curses` maybe?
+- Commandline params for bypassing search, naming output files, etc.
+
+## Credit Where Credit Is Due
+
+- [The INLretro Dumper-Programmer](http://www.infiniteneslives.com/inlretro.php) because this wouldn't do anything without it!
+- [NES Cart DB](http://bootgod.dyndns.org:7777/) for NES/Famicom data
+- [No-Intro](http://no-intro.org/) for all other consoles
