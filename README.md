@@ -32,7 +32,9 @@ You can run `deactivate` when you're done using the backup utility to disable vi
 
 ## Cart Support
 
-The software only supports backups for Genesis/Mega Drive and NES/Famicom carts, though support for the other consoles is coming soon.
+- NES/Famicom
+- Genesis/Mega Drive
+- Nintendo 64
 
 NES/Famicom cartridge support is tethered to the mapper sets supported by the INLretro, though that list is pretty substantial at this point. However, you won't have much luck backing up weirdo games yet.
 
@@ -50,7 +52,7 @@ If you _don't_ have the 2.3 firmware installed, you'll have to follow directions
 
 - Windows support?
 - Improve XML parser for no-intro db systems (names/regions are sometimes inconsistent)
-- Support other systems besides NES/Famicom and Genesis/Mega Drive
+- Support the remaining console cartridge adapters
 - Perform CRC checks on the backed up ROMs
 - Improve INES header generation
 - Make menus better
