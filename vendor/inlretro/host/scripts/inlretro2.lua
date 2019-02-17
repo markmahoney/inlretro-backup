@@ -73,12 +73,14 @@ function nes_exec(process_opts, console_opts)
         easynsf = require "scripts.nes.easyNSF",
         fme7 = require "scripts.nes.fme7",
         mapper30 = require "scripts.nes.mapper30",
+        mapper30v2 = require "scripts.nes.mapper30v2",
         mmc1 = require "scripts.nes.mmc1",
         mmc3 = require "scripts.nes.mmc3",
         mmc4 = require "scripts.nes.mmc4",
         mmc5 = require "scripts.nes.mmc5",
         nrom = require "scripts.nes.nrom",
-        unrom = require "scripts.nes.unrom"
+        unrom = require "scripts.nes.unrom",
+        gtrom = require "scripts.nes.gtrom"
     }
 
     dict.io("IO_RESET")	

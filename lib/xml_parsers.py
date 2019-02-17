@@ -21,7 +21,6 @@ def parse_nes_cart_db(xml_path):
             console = console,
             name = name,
             publisher = publisher,
-            raw_name = name,
             region = region,
             revisions = revisions,
         )
@@ -79,43 +78,50 @@ def parse_nes_cart_db(xml_path):
     return map(parse_game, xml.findall('./game'))
 
 def parse_no_intro_db(xml_path):
-    TITLE_PARSER = r'^(.*?) \(([,\sa-zA-Z]+)\)'
+    # Titles are of the form "name (regions) (languages)? (revision)? (unlicensed)?"
+    # Regions are sometimes comma-separated, as are abbreviated language codes: "(USA,Europe) (En,Es,Fr)"
+    # Revisions can take the form "Rev #" or sometimes "v#.#", though that list isn't exhaustive
+    # This should capture name(1), regions(2), languages(3, optional), and revision(4, optional):
+    TITLE_PARSER = r'^(.*?) \(([,\sa-zA-Z]+)\)(?: \(([,\sa-zA-Z]+)\))?(?: \(((?:Rev |v)[\.0-9]+)\))?'
     # Map the name of the console in the no-intro db to the console enum
     CONSOLE_NAMES = {
         'Nintendo - Nintendo 64 (BigEndian)': Console.N64,
+        'Nintendo - Super Nintendo Entertainment System (Combined)': Console.SNES,
         'Sega - Mega Drive - Genesis': Console.GENESIS,
     }
     
     def parse_console(xml):
         name = xml.find('./header/name').text
         return CONSOLE_NAMES.get(name, None)
-        
+
     def parse_game(console):
-        def do_parsing(game_xml):
+        def do_parsing(name_region_cache, game_xml):
             attrib = game_xml.attrib
 
-            revisions = [parse_rom(game_xml.find('./rom'))]
-            # Note: sometimes region might be "USA, Europe"
-            # TODO: maybe split those up into separate games?
-            (name, region) = parse_name_and_region(attrib['name'])
-    
-            return Game(
-                catalog = None,
-                console = console,
-                name = name,
-                publisher = None,
-                raw_name = attrib['name'],
-                region = region,
-                revisions = revisions,
-            )
+            revision = parse_rom(game_xml.find('./rom'))
+            (name, region, _) = parse_name_region_revision(attrib['name'])
+
+            if (name, region) in name_region_cache:
+                # We already have a game by this name/region, so assume this is
+                # another revision
+                name_region_cache[(name, region)].revisions.append(revision)
+            else:
+                name_region_cache[(name, region)] = Game(
+                    catalog = None,
+                    console = console,
+                    name = name,
+                    publisher = None,
+                    region = region,
+                    revisions = [revision],
+                )
+
+            return name_region_cache
 
         return do_parsing
 
-    # Typically no-intro.org names are structured like
-    # "Game Name (Region) [(language support, sometimes?)] [(Unl)]"
-    # where (Unl) stands for unlicensed.
-    def parse_name_and_region(title):
-        return re.match(TITLE_PARSER, title).group(1, 2)
+    # See comment above TITLE_PARSER definition
+    def parse_name_region_revision(title):
+        return re.match(TITLE_PARSER, title).group(1, 2, 4)
 
     def parse_size(size):
         return int(size) / 1024
@@ -134,5 +140,6 @@ def parse_no_intro_db(xml_path):
     # The actual parsing starts here
     xml = ElementTree.parse(xml_path).getroot()
     console = parse_console(xml)
-    return map(parse_game(console), xml.findall('./game'))
+    games_by_name_region = reduce(parse_game(console), xml.findall('./game'), {})
+    return games_by_name_region.values()
 

@@ -7,6 +7,7 @@ local dict = require "scripts.app.dict"
 local nes = require "scripts.app.nes"
 local dump = require "scripts.app.dump"
 local flash = require "scripts.app.flash"
+local time = require "scripts.app.time"
 
 -- file constants
 
@@ -61,8 +62,8 @@ local function process(process_opts, console_opts)
 	local file
 	-- TODO: Cleanup needed here, support chrrom, make this look more like other mapper scripts.
 	local size = console_opts["prg_rom_size_kb"]
-	--local filetype = "nes"
-	local filetype = "bin"
+	local filetype = "nes"
+	--local filetype = "bin"
 
 --initialize device i/o for NES
 	dict.io("IO_RESET")
@@ -203,7 +204,10 @@ local function process(process_opts, console_opts)
 
 
 		--flash cart
-		flash.write_file( file, size, "MAP30", "PRGROM", true )
+		print("\nFLASHING the PRG-ROM, will take ~20sec please wait...")
+		time.start()
+		flash.write_file( file, size, "MAP30", "PRGROM", false )
+		time.report(size)
 		--close file
 		assert(file:close())
 

@@ -12,7 +12,8 @@ class Console(Enum):
     FAMICOM = 'Famicom'
     NES = 'NES'
     GENESIS = 'Genesis/Mega Drive'
-    N64 = 'N64'
+    N64 = 'Nintendo 64'
+    SNES = 'SNES/Super Famicom'
 
 Game = namedtuple(
     'Game',
@@ -21,7 +22,6 @@ Game = namedtuple(
         'console',
         'name',
         'publisher',
-        'raw_name',   # for no-intro-based games, the unparsed game name; same as `name` for NES
         'region',
         'revisions',
     ))

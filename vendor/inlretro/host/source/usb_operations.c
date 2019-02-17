@@ -67,11 +67,11 @@ libusb_device_handle *open_usb_device( libusb_context *context, int log_level )
 	// return value is number of devices plus one as list is null terminated, or LIBUSB_ERROR if negative.
 	// Must free device list after done with it
 	if (log_level>0) printf("Getting USB device list\n");
-	ssize_t dev_count = libusb_get_device_list( context, &device_list);
+	int dev_count = libusb_get_device_list( context, &device_list);
 	check( dev_count >= 0, "libusb unable to find any devices: %s", libusb_strerror(dev_count));
 	if (log_level>0) printf("Successfully retrieved USB device list\n");
 
-	ssize_t i = 0;
+	int i = 0;
 
 	libusb_device *retroprog = NULL;
 	libusb_device *device = NULL;
@@ -90,12 +90,12 @@ libusb_device_handle *open_usb_device( libusb_context *context, int log_level )
 	const char *rprog_prod = "INL Retro-Prog";
 	uint16_t min_fw_ver = 0x200;
 
-	if (log_level>0) printf("Searching %ld total devices\n", dev_count-1);
+	if (log_level>0) printf("Searching %d total devices\n", dev_count-1);
 	for( i=0; i<dev_count; i++) {
 		device = device_list[i];
-		if (log_level>0) printf("getting dev desc #%zd ", i);
+		if (log_level>0) printf("getting dev desc #%d ", i);
 		rv = libusb_get_device_descriptor( device, &desc);
-		check( rv == LIBUSB_SUCCESS, "Unable to get device #%zd descriptor: %s", i, libusb_strerror(rv));
+		check( rv == LIBUSB_SUCCESS, "Unable to get device #%d descriptor: %s", i, libusb_strerror(rv));
 				
 		if (log_level>0) printf("checking %x vendor ", desc.idVendor);
 		if (log_level>0) printf("checking %x product\n", desc.idProduct);

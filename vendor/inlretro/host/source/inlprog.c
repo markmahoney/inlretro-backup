@@ -99,7 +99,7 @@ INLOptions* parseOptions(int argc, char *argv[]) {
 	};
 
 	// FLAG_FORMAT must be kept in sync with any short options used in longopts.
-	const char *FLAG_FORMAT = "a:b:hc:d:m:p:s:v:w:x:y:z:";
+	const char *FLAG_FORMAT = "a:b:hc:d:k:m:p:s:v:w:x:y:z:";
 	int index = 0;
 	int rv = 0;
 	int kbyte = 0;

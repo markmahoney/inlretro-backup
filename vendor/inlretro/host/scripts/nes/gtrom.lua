@@ -1,6 +1,6 @@
 
 -- create the module's table
-local mapper30v2 = {}
+local gtrom = {}
 
 -- import required modules
 local dict = require "scripts.app.dict"
@@ -9,13 +9,10 @@ local dump = require "scripts.app.dump"
 local flash = require "scripts.app.flash"
 local time = require "scripts.app.time"
 local files = require "scripts.app.files"
-local ciccom = require "scripts.app.ciccom"
 local time = require "scripts.app.time"
-local swim = require "scripts.app.swim"
-local mapper30_legacy = require "scripts.nes.mapper30"
 
 -- file constants & variables
-local mapname = "MAP30"
+local mapname = "GTROM"
 
 -- local functions
 
@@ -25,21 +22,15 @@ local function prgrom_manf_id( debug )
 
 	if debug then print("reading PRG-ROM manf ID") end
 	--no bus conflicts
-	--$8000-BFFF writes to flash
-	--$C000-FFFF writes to mapper
-	--ROM A14 is mapper controlled
+	--$5000-5FFF / $7000-7FFF writes to mapper
+	--$8000-FFFF writes to mapper
 	--
 	--A15 14 - 13 12
-	-- 1   1    0  1  : 0x5555 -> bank1, $9555
-	-- 1   0    1  0  : 0x2AAA -> bank0, $AAAA
-	dict.nes("NES_CPU_WR", 0xC000, 0x01)
-	dict.nes("NES_CPU_WR", 0x9555, 0xAA)
-
-	dict.nes("NES_CPU_WR", 0xC000, 0x00)
+	-- 1   1    0  1  : 0x5555 -> $D555
+	-- 1   0    1  0  : 0x2AAA -> $AAAA
+	dict.nes("NES_CPU_WR", 0xD555, 0xAA)
 	dict.nes("NES_CPU_WR", 0xAAAA, 0x55)
-
-	dict.nes("NES_CPU_WR", 0xC000, 0x01)
-	dict.nes("NES_CPU_WR", 0x9555, 0x90)
+	dict.nes("NES_CPU_WR", 0xD555, 0x90)
 
 	rv = dict.nes("NES_CPU_RD", 0x8000)
 	if debug then print("attempted read PRG-ROM manf ID:", string.format("%X", rv)) end
@@ -52,45 +43,43 @@ local function prgrom_manf_id( debug )
 end
 
 --select different chr-ram banks and verify all 4 banks are present
-local function map30_chrbank_test()
+local function gtrom_chrbank_test()
 
-	dict.nes("NES_CPU_WR", 0xC000, 0x00) --CHR bank 0
-	dict.nes("NES_PPU_WR", 0x0000, 0xAA)
-	dict.nes("NES_CPU_WR", 0xC000, 0x20) --CHR bank 1
-	dict.nes("NES_PPU_WR", 0x0000, 0x55)
-	dict.nes("NES_CPU_WR", 0xC000, 0x40) --CHR bank 2
-	dict.nes("NES_PPU_WR", 0x0000, 0xCC)
-	dict.nes("NES_CPU_WR", 0xC000, 0x60) --CHR bank 3
-	dict.nes("NES_PPU_WR", 0x0000, 0x33)
+	dict.nes("NES_CPU_WR", 0x5000, 0x00) --PT & NT bank 0
+	dict.nes("NES_PPU_WR", 0x0000, 0xAA) --PT write
+	dict.nes("NES_PPU_WR", 0x2000, 0xCC) --NT write
+
+	dict.nes("NES_CPU_WR", 0x5000, 0x30) --PT & NT bank 1
+	dict.nes("NES_PPU_WR", 0x0000, 0x55) --PT write
+	dict.nes("NES_PPU_WR", 0x2000, 0x33) --NT write
 
 	--read back
 	local test = true 
-	dict.nes("NES_CPU_WR", 0xC000, 0x00) --CHR bank 0
+	dict.nes("NES_CPU_WR", 0x5000, 0x00) --CHR bank 0
 	rv = dict.nes("NES_PPU_RD", 0x0000)
 	if rv ~= 0xAA then 
 		print( "\nFAIL CHR-RAM BANKING TEST!!!\n")
-		print("bank0 read:", string.format("%X", rv))
+		print("PT bank0 read:", string.format("%X", rv))
 		test = false
 	end
-	dict.nes("NES_CPU_WR", 0xC000, 0x20) --CHR bank 1
+	rv = dict.nes("NES_PPU_RD", 0x2000)
+	if rv ~= 0xCC then 
+		print( "\nFAIL CHR-RAM BANKING TEST!!!\n")
+		print("NT bank0 read:", string.format("%X", rv))
+		test = false
+	end
+
+	dict.nes("NES_CPU_WR", 0x5000, 0x30) --CHR bank 1
 	rv = dict.nes("NES_PPU_RD", 0x0000)
 	if rv ~= 0x55 then 
 		print( "\nFAIL CHR-RAM BANKING TEST!!!\n")
-		print("bank1 read:", string.format("%X", rv))
+		print("PT bank1 read:", string.format("%X", rv))
 		test = false
 	end
-	dict.nes("NES_CPU_WR", 0xC000, 0x40) --CHR bank 2
-	rv = dict.nes("NES_PPU_RD", 0x0000)
-	if rv ~= 0xCC then 
-		print( "\nFAIL CHR-RAM BANKING TEST!!!\n")
-		print("bank2 read:", string.format("%X", rv))
-		test = false
-	end
-	dict.nes("NES_CPU_WR", 0xC000, 0x60) --CHR bank 3
-	rv = dict.nes("NES_PPU_RD", 0x0000)
+	rv = dict.nes("NES_PPU_RD", 0x2000)
 	if rv ~= 0x33 then 
 		print( "\nFAIL CHR-RAM BANKING TEST!!!\n")
-		print("bank3 read:", string.format("%X", rv))
+		print("NT bank1 read:", string.format("%X", rv))
 		test = false
 	end
 
@@ -103,169 +92,11 @@ local function map30_chrbank_test()
 	end
 end
 
---dump the CHR ROM
-local function dump_chrrom( file, rom_size_KB, debug )
-
-	--CHR-ROM dump all 8KB, most of this code is overkill for NROM.
-	--	but follows same format as banked mappers
-	local KB_per_read = 8	
-	local num_reads = rom_size_KB / KB_per_read
-	local read_count = 0
-	local addr_base = 0x00	-- $0000
-
-	while ( read_count < num_reads ) do
-
-		if debug then print( "dump CHR part ", read_count, " of ", num_reads) end
-
-		dump.dumptofile( file, KB_per_read, addr_base, "NESPPU_PAGE", false )
-
-		read_count = read_count + 1
-	end
-
-end
-
-
-local function exercise_chrram(debug)
-	
-	if debug then print("exercising CHR-RAM") end
-	dict.stuff("RESET_LFSR")	--sets it to 1
---	dict.stuff("SET_LFSR_L", 0) --lock it up to clear ram
---	dict.stuff("SET_LFSR_L", 2) --give different seed for testing fails
-
-
-	--write random data to all 4 banks
-	local bank = 0x00
-	
-	while (bank<=0x60) do
-		--select the bank
-		dict.nes("NES_CPU_WR", 0xC000, bank ) 
-		bank = bank + 0x20
-
-		local addr = 0x0000
-		while (addr<0x2000) do
-			dict.nes("PPU_PAGE_WR_LFSR", addr)
-			addr = addr + 256
-		end
-	end
-
-	local filename = "ignore/chrramdump.bin"
-
-	local file = assert(io.open(filename, "wb"))
-
-	bank = 0x00
-	while (bank<=0x60) do
-		--select the bank
-		dict.nes("NES_CPU_WR", 0xC000, bank ) 
-		bank = bank + 0x20
-
-		dump_chrrom(file, 8)
-	end
-
-	--close the file
-	assert(file:close())
-
-	--re-open & compare dump with known lsfr bitstream
-	local goodfile = "ignore/lfsr_32KB.bin"
-
-	--compare the flash file vs post dump file
-	if ( files.compare( filename, goodfile, true ) ) then
-		print("CHR-RAM test verified")
-		return true
-	else
-		print("FAILURE! CHR-RAM test failed")
-		return false
-	end
-
-
-end
-
-local function test_soft_mir_switch( debug ) 
-
-	--set to Horiz
-	if debug then print("test setting soft mir switch to Horiz") end
-	ciccom.start()
-	ciccom.set_opcode("M")
-	--now send operand "V" (0x56) or "H" (0x48)
-	ciccom.write("H")
-
-	dict.io("IO_RESET")	
-	time.sleep(0.05) --10msec to be overly safe
-
-	--the CIC won't update the H/V stack flag unless it's reset
-	--reset caused during swim init doesn't count either bc it halts at reset vector
-
-	--test reading back CIC version
-	dict.io("SWIM_INIT", "SWIM_ON_A0")	
-	--dict.io("SWIM_INIT", "SWIM_ON_EXP0")	
-	if swim.start() then
-		swim.read_stack()
-	else
-		print("ERROR trying to read back CIC signature stack data")
-	end
-	swim.stop_and_reset()
-
-	time.sleep(0.05) --10msec to be overly safe
-	dict.io("NES_INIT")	
-	if ( nes.detect_mapper_mirroring() == "HORZ" ) then
-		if debug then print("pass Horiz soft mirror switch") end
-	else
-		print("\n\n\nFAIL HORZ SOFT MIRROR SWITCH TEST!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n\n")
-		--don't continue
-		return false
-	end
-
-	dict.io("IO_RESET")	
-	
-
-	--set to Vert
-	ciccom.start()
-	ciccom.set_opcode("M")
-	--now send operand "V" (0x56) or "H" (0x48)
-	ciccom.write("V")
-
-	
-
-	dict.io("IO_RESET")	
-	time.sleep(0.05) --10msec to be overly safe
-
-
-	--the CIC won't update the H/V stack flag unless it's reset
-	--reset caused during swim init doesn't count either bc it halts at reset vector
-
-	--test reading back CIC version
-	dict.io("SWIM_INIT", "SWIM_ON_A0")	
-	--dict.io("SWIM_INIT", "SWIM_ON_EXP0")	
-	if swim.start() then
-
-		swim.read_stack()
-
-	else
-		print("ERROR trying to read back CIC signature stack data")
-	end
-	swim.stop_and_reset()
-
-	--print("done reading STM8 stack on A0\n")
-
-	dict.io("NES_INIT")	
-	if ( nes.detect_mapper_mirroring() == "VERT" ) then
-		if debug then print("pass Vert soft mirror switch") end
-	else
-		print("\n\n\nFAIL VERT SOFT MIRROR SWITCH TEST!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n\n")
-		--don't continue
-		return false
-	end
-
-	dict.io("IO_RESET")	
-	dict.io("NES_INIT")	
-
-	print("Software mirroring switch operation verified working")
-	return true
-end
 
 --dump the PRG ROM
 local function dump_prgrom( file, rom_size_KB, debug )
 
-	local KB_per_read = 16
+	local KB_per_read = 32
 	local num_reads = rom_size_KB / KB_per_read
 	local read_count = 0
 	local addr_base = 0x80	-- $8000
@@ -276,7 +107,7 @@ local function dump_prgrom( file, rom_size_KB, debug )
 
 		--select desired bank(s) to dump
 		--mapper 30 bank register is $C000-FFFF
-		dict.nes("NES_CPU_WR", 0xFC80, read_count)	--16KB @ CPU $8000
+		dict.nes("NES_CPU_WR", 0x5000, read_count)	--32KB @ CPU $8000
 
 		dump.dumptofile( file, KB_per_read, addr_base, "NESCPU_PAGE", false )
 
@@ -289,16 +120,17 @@ end
 --REQ: addr must be in the first bank $8000-BFFF
 local function wr_prg_flash_byte(addr, value, bank, debug)
 
-	if (addr < 0x8000 or addr > 0xBFFF) then
-		print("\n  ERROR! flash write to PRG-ROM", string.format("$%X", addr), "must be $8000-BFFF \n\n")
+	if (addr < 0x8000 or addr > 0xFFFF) then
+		print("\n  ERROR! flash write to PRG-ROM", string.format("$%X", addr), "must be $8000-FFFF \n\n")
 		return
 	end
 
-	dict.nes("NES_CPU_WR", 0xC000, 0x01) dict.nes("NES_CPU_WR", 0x9555, 0xAA)
-	dict.nes("NES_CPU_WR", 0xC000, 0x00) dict.nes("NES_CPU_WR", 0xAAAA, 0x55)
-	dict.nes("NES_CPU_WR", 0xC000, 0x01) dict.nes("NES_CPU_WR", 0x9555, 0xA0)
+	dict.nes("NES_CPU_WR", 0x5000, bank)
 
-	dict.nes("NES_CPU_WR", 0xC000, bank)
+	dict.nes("NES_CPU_WR", 0xD555, 0xAA)
+	dict.nes("NES_CPU_WR", 0xAAAA, 0x55)
+	dict.nes("NES_CPU_WR", 0xD555, 0xA0)
+
 	dict.nes("NES_CPU_WR", addr, value)
 
 	local rv = dict.nes("NES_CPU_RD", addr)
@@ -325,21 +157,18 @@ local function flash_prgrom(file, rom_size_KB, debug)
 	--test some bytes
 	--wr_prg_flash_byte(0x0000, 0xA5, 0, true)
 	--wr_prg_flash_byte(0xFFFF, 0x5A, 1, true)
+	--if true then return end
 
 	print("\nProgramming PRG-ROM flash")
 
 	local base_addr = 0x8000 --writes occur $8000-9FFF
-	local bank_size = 16*1024 --UNROM 16KByte per PRG bank
+	local bank_size = 32*1024 --UNROM 16KByte per PRG bank
 	local buff_size = 1      --number of bytes to write at a time
 	local cur_bank = 0
 	local total_banks = rom_size_KB*1024/bank_size
 
 	local byte_num --byte number gets reset for each bank
 	local byte_str, data, readdata
-
-	--set the bank table address
-	dict.nes("SET_BANK_TABLE", banktable_base) 
-	if debug then print("get banktable:", string.format("%X", dict.nes("GET_BANK_TABLE"))) end
 
 	while cur_bank < total_banks do
 
@@ -348,8 +177,7 @@ local function flash_prgrom(file, rom_size_KB, debug)
 		end
 
 		--select bank to flash
-		dict.nes("SET_CUR_BANK", cur_bank) 
-		if debug then print("get bank:", dict.nes("GET_CUR_BANK")) end
+		dict.nes("NES_CPU_WR", 0x5000, cur_bank)
 
 		--program the entire bank's worth of data
 
@@ -367,10 +195,9 @@ local function flash_prgrom(file, rom_size_KB, debug)
 			--SLOWEST OPTION: no firmware MMC3 specific functions 100% host flash algo:
 			--wr_prg_flash_byte(base_addr+byte_num, data, cur_bank, false)   --0.7KBps
 			--EASIEST FIRMWARE SPEEDUP: 5x faster, create MMC3 write byte function:
-			--can use same write function as NROM
-			dict.nes("MAP30_PRG_FLASH_WR", base_addr+byte_num, data)  --3.8KBps (5.5x faster than above)
+			dict.nes("GTROM_PRG_FLASH_WR", base_addr+byte_num, data)  --3.8KBps (5.5x faster than above)
 
-			if (verify) then
+			if (true) then
 				readdata = dict.nes("NES_CPU_RD", base_addr+byte_num)
 				if readdata ~= data then
 					print("ERROR flashing byte number", byte_num, " in bank",cur_bank, " to flash ", data, readdata)
@@ -391,24 +218,6 @@ local function flash_prgrom(file, rom_size_KB, debug)
 
 end
 
-local function is_old_firmware( debug )
-
-	if debug then print("checking for old firmware") end
-
-	--check if CIRAM_A10_MIRRORING opcode is present
-	--this was cut from later versions
-	local rv
-	rv = dict.nes("CIRAM_A10_MIRROR", nil, nil, nil, true)
-	
-	if debug then 
-		if rv then print("old firmware sensed, running legacy mode")
-		else print("later firmware sensed, running current script")
-		end
-	end
-
-	return rv
-
-end
 
 --Cart should be in reset state upon calling this function 
 --this function processes all user requests for this specific board/mapper
@@ -427,15 +236,8 @@ local function process(process_opts, console_opts)
 	-- TODO: Cleanup needed here, support chrrom, make this look more like other mapper scripts.
 	local prg_size = console_opts["prg_rom_size_kb"]
 
-	local filetype = "nes"
-	--local filetype = "bin"
-
-	if is_old_firmware(true) then
-		--call legacy mapper30 script
---local mapper30_legacy = require "scripts.nes.mapper30"
-		mapper30_legacy.process(process_opts, console_opts)
-		return
-	end
+	--local filetype = "nes"
+	local filetype = "bin"
 
 --initialize device i/o for NES
 	dict.io("IO_RESET")
@@ -446,26 +248,16 @@ local function process(process_opts, console_opts)
 	if test then
 		print("Testing ", mapname)
 
-		nes.detect_mapper_mirroring(true)
+		--nes.detect_mapper_mirroring(true)
 		nes.ppu_ram_sense(0x1000, true)
 		print("EXP0 pull-up test:", dict.io("EXP0_PULLUP_TEST"))	
 
 		prgrom_manf_id( debug )
 
 		--test CHR-RAM banking
-		rv = map30_chrbank_test()
+		rv = gtrom_chrbank_test()
 		--exit script if test fails
 		if not rv then return end 
-
-		--test CHR-RAM
-		--rv = exercise_chrram()
-		--exit script if test fails
-		--if not rv then return end 
-
-		--test software mirroring switch
-		--rv = test_soft_mir_switch()
-		--if not rv then return end 
-
 
 	end
 
@@ -491,12 +283,12 @@ local function process(process_opts, console_opts)
 
 		print("\nerasing", mapname);
 
-		dict.nes("NES_CPU_WR", 0xC000, 0x01) dict.nes("NES_CPU_WR", 0x9555, 0xAA)
-		dict.nes("NES_CPU_WR", 0xC000, 0x00) dict.nes("NES_CPU_WR", 0xAAAA, 0x55)
-		dict.nes("NES_CPU_WR", 0xC000, 0x01) dict.nes("NES_CPU_WR", 0x9555, 0x80)
-		dict.nes("NES_CPU_WR", 0xC000, 0x01) dict.nes("NES_CPU_WR", 0x9555, 0xAA)
-		dict.nes("NES_CPU_WR", 0xC000, 0x00) dict.nes("NES_CPU_WR", 0xAAAA, 0x55)
-		dict.nes("NES_CPU_WR", 0xC000, 0x01) dict.nes("NES_CPU_WR", 0x9555, 0x10)
+		dict.nes("NES_CPU_WR", 0xD555, 0xAA)
+		dict.nes("NES_CPU_WR", 0xAAAA, 0x55)
+		dict.nes("NES_CPU_WR", 0xD555, 0x80)
+		dict.nes("NES_CPU_WR", 0xD555, 0xAA)
+		dict.nes("NES_CPU_WR", 0xAAAA, 0x55)
+		dict.nes("NES_CPU_WR", 0xD555, 0x10)
 
 		local i = 0
 
@@ -532,7 +324,6 @@ local function process(process_opts, console_opts)
 
 		if filetype == "nes" then
 		--advance past the 16byte header
-		--TODO set mirroring bit via ciccom
 			local buffsize = 1
 			local byte
 			local count = 1
@@ -590,7 +381,7 @@ end
 
 
 -- functions other modules are able to call
-mapper30v2.process = process
+gtrom.process = process
 
 -- return the module's table
-return mapper30v2
+return gtrom

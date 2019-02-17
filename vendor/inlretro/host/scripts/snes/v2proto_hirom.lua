@@ -10,8 +10,339 @@ local snes = require "scripts.app.snes"
 local apperase = require "scripts.app.erase"
 
 -- file constants
-local hirom_name = 'hirom'
-local lorom_name = 'lorom'
+local hirom_name = 'HiROM'
+local lorom_name = 'LoROM'
+
+-- Useful References:
+-- http://old.smwiki.net/wiki/Internal_ROM_Header
+-- https://en.wikibooks.org/wiki/Super_NES_Programming/SNES_memory_map
+-- https://patpend.net/technical/snes/sneskart.html
+
+local hardware_type = {
+    [0x00] = "ROM Only",
+    [0x01] = "ROM and RAM",
+    [0x02] = "ROM and Save RAM",
+    [0x03] = "ROM and DSP1"
+}
+
+-- Upperbound for ROM size, actual program size may be smaller.
+local rom_ubound = {
+    [0x08] = "2 megabits",
+    [0x09] = "4 megabits",
+    [0x0A] = "8 megabits",
+    [0x0B] = "16 megabits",
+    [0x0C] = "32 megabits",
+    [0x0D] = "64 megabits",
+}
+
+-- Translates size in header to KBytes.
+local rom_size_kb_tbl = {
+    [0x08] = 2 * 128,
+    [0x09] = 4 * 128,
+    [0x0A] = 8 * 128,
+    [0x0B] = 16 * 128,
+    [0x0C] = 32 * 128,
+    [0x0D] = 64 * 128,
+}
+
+local ram_size = {
+    [0x00] = "No sram",
+    [0x01] = "16 kilobits",
+    [0x02] = "32 kilobits",
+    [0x03] = "64 kilobits",
+}
+
+local destination_code = {
+    [0] = "Japan (NTSC)",
+    [1] = "USA (NTSC)",
+    [2] = "Australia, Europe, Oceania and Asia (PAL)",
+    [3] = "Sweden (PAL)",
+    [4] = "Finland (PAL)",
+    [5] = "Denmark (PAL)",
+    [6] = "France (PAL)",
+    [7] = "Holland (PAL)",
+    [8] = "Spain (PAL)",
+    [9] = "Germany, Austria and Switzerland (PAL)",
+    [10] = "Italy (PAL)",
+    [11] = "Hong Kong and China (PAL)",
+    [12] = "Indonesia (PAL)",
+    [13] = "Korea (PAL)",
+}
+
+local developer_code = {
+    [0x01] = 'Nintendo',
+    [0x03] = 'Imagineer-Zoom',
+    [0x05] = 'Zamuse',
+    [0x06] = 'Falcom',
+    [0x08] = 'Capcom',
+    [0x09] = 'HOT-B',
+    [0x0a] = 'Jaleco',
+    [0x0b] = 'Coconuts',
+    [0x0c] = 'Rage Software',
+    [0x0e] = 'Technos',
+    [0x0f] = 'Mebio Software',
+    [0x12] = 'Gremlin Graphics',
+    [0x13] = 'Electronic Arts',
+    [0x15] = 'COBRA Team',
+    [0x16] = 'Human/Field',
+    [0x17] = 'KOEI',
+    [0x18] = 'Hudson Soft',
+    [0x1a] = 'Yanoman',
+    [0x1c] = 'Tecmo',
+    [0x1e] = 'Open System',
+    [0x1f] = 'Virgin Games',
+    [0x20] = 'KSS',
+    [0x21] = 'Sunsoft',
+    [0x22] = 'POW',
+    [0x23] = 'Micro World',
+    [0x26] = 'Enix',
+    [0x27] = 'Loriciel/Electro Brain',
+    [0x28] = 'Kemco',
+    [0x29] = 'Seta Co.,Ltd.',
+    [0x2d] = 'Visit Co.,Ltd.',
+    [0x31] = 'Carrozzeria',
+    [0x32] = 'Dynamic',
+    [0x33] = 'Nintendo',
+    [0x34] = 'Magifact',
+    [0x35] = 'Hect',
+    [0x3c] = 'Empire Software',
+    [0x3d] = 'Loriciel',
+    [0x40] = 'Seika Corp.',
+    [0x41] = 'UBI Soft',
+    [0x46] = 'System 3',
+    [0x47] = 'Spectrum Holobyte',
+    [0x49] = 'Irem',
+    [0x4b] = 'Raya Systems/Sculptured Software',
+    [0x4c] = 'Renovation Products',
+    [0x4d] = 'Malibu Games/Black Pearl',
+    [0x4f] = 'U.S. Gold',
+    [0x50] = 'Absolute Entertainment',
+    [0x51] = 'Acclaim',
+    [0x52] = 'Activision',
+    [0x53] = 'American Sammy',
+    [0x54] = 'GameTek',
+    [0x55] = 'Hi Tech Expressions',
+    [0x56] = 'LJN Toys',
+    [0x5a] = 'Mindscape',
+    [0x5d] = 'Tradewest',
+    [0x5f] = 'American Softworks Corp.',
+    [0x60] = 'Titus',
+    [0x61] = 'Virgin Interactive Entertainment',
+    [0x62] = 'Maxis',
+    [0x67] = 'Ocean',
+    [0x69] = 'Electronic Arts',
+    [0x6b] = 'Laser Beam',
+    [0x6e] = 'Elite',
+    [0x6f] = 'Electro Brain',
+    [0x70] = 'Infogrames',
+    [0x71] = 'Interplay',
+    [0x72] = 'LucasArts',
+    [0x73] = 'Parker Brothers',
+    [0x75] = 'STORM',
+    [0x78] = 'THQ Software',
+    [0x79] = 'Accolade Inc.',
+    [0x7a] = 'Triffix Entertainment',
+    [0x7c] = 'Microprose',
+    [0x7f] = 'Kemco',
+    [0x80] = 'Misawa',
+    [0x81] = 'Teichio',
+    [0x82] = 'Namco Ltd.',
+    [0x83] = 'Lozc',
+    [0x84] = 'Koei',
+    [0x86] = 'Tokuma Shoten Intermedia',
+    [0x88] = 'DATAM-Polystar',
+    [0x8b] = 'Bullet-Proof Software',
+    [0x8c] = 'Vic Tokai',
+    [0x8e] = 'Character Soft',
+    [0x8f] = 'I\'\'Max',
+    [0x90] = 'Takara',
+    [0x91] = 'CHUN Soft',
+    [0x92] = 'Video System Co., Ltd.',
+    [0x93] = 'BEC',
+    [0x95] = 'Varie',
+    [0x97] = 'Kaneco',
+    [0x99] = 'Pack in Video',
+    [0x9a] = 'Nichibutsu',
+    [0x9b] = 'TECMO',
+    [0x9c] = 'Imagineer Co.',
+    [0xa0] = 'Telenet',
+    [0xa4] = 'Konami',
+    [0xa5] = 'K.Amusement Leasing Co.',
+    [0xa7] = 'Takara',
+    [0xa9] = 'Technos Jap.',
+    [0xaa] = 'JVC',
+    [0xac] = 'Toei Animation',
+    [0xad] = 'Toho',
+    [0xaf] = 'Namco Ltd.',
+    [0xb1] = 'ASCII Co. Activison',
+    [0xb2] = 'BanDai America',
+    [0xb4] = 'Enix',
+    [0xb6] = 'Halken',
+    [0xba] = 'Culture Brain',
+    [0xbb] = 'Sunsoft',
+    [0xbc] = 'Toshiba EMI',
+    [0xbd] = 'Sony Imagesoft',
+    [0xbf] = 'Sammy',
+    [0xc0] = 'Taito',
+    [0xc2] = 'Kemco',
+    [0xc3] = 'Square',
+    [0xc4] = 'Tokuma Soft',
+    [0xc5] = 'Data East',
+    [0xc6] = 'Tonkin House',
+    [0xc8] = 'KOEI',
+    [0xca] = 'Konami USA',
+    [0xcb] = 'NTVIC',
+    [0xcd] = 'Meldac',
+    [0xce] = 'Pony Canyon',
+    [0xcf] = 'Sotsu Agency/Sunrise',
+    [0xd0] = 'Disco/Taito',
+    [0xd1] = 'Sofel',
+    [0xd2] = 'Quest Corp.',
+    [0xd3] = 'Sigma',
+    [0xd6] = 'Naxat',
+    [0xd8] = 'Capcom Co., Ltd.',
+    [0xd9] = 'Banpresto',
+    [0xda] = 'Tomy',
+    [0xdb] = 'Acclaim',
+    [0xdd] = 'NCS',
+    [0xde] = 'Human Entertainment',
+    [0xdf] = 'Altron',
+    [0xe0] = 'Jaleco',
+    [0xe2] = 'Yutaka',
+    [0xe4] = 'T&ESoft',
+    [0xe5] = 'EPOCH Co.,Ltd.',
+    [0xe7] = 'Athena',
+    [0xe8] = 'Asmik',
+    [0xe9] = 'Natsume',
+    [0xea] = 'King Records',
+    [0xeb] = 'Atlus',
+    [0xec] = 'Sony Music Entertainment',
+    [0xee] = 'IGS',
+    [0xf1] = 'Motown Software',
+    [0xf2] = 'Left Field Entertainment',
+    [0xf3] = 'Beam Software',
+    [0xf4] = 'Tec Magik',
+    [0xf9] = 'Cybersoft',
+    [0xff] = 'Hudson Soft',
+  }
+
+function hexfmt(val)
+    return string.format("0x%04X", val)
+end
+
+-- Function that determines if cartridge is lorom or hirom.
+function detect_mapping()
+    local mapping = "unknown"
+    local map_mode_addr = 0xFFD5
+    local addr_rom_type = 0xFFD6
+    local addr_rom_size = 0xFFD7
+    local addr_sram_size = 0xFFD8
+    local addr_destination_code = 0xFFD9
+    
+    dict.snes("SNES_SET_BANK", 0x00)
+    local maybe_map_mode = dict.snes("SNES_ROM_RD", map_mode_addr)
+    local valid_hirom_rom_type = hardware_type[dict.snes("SNES_ROM_RD", addr_rom_type)]
+    local valid_hirom_rom_size = rom_ubound[dict.snes("SNES_ROM_RD", addr_rom_size)]
+    local valid_hirom_sram_size = ram_size[dict.snes("SNES_ROM_RD", addr_sram_size)]
+    local valid_hirom_destination_code = destination_code[dict.snes("SNES_ROM_RD", addr_destination_code)]
+    local maybe_hirom = (maybe_map_mode & 1)
+
+    if (valid_hirom_rom_type and valid_hirom_rom_size and valid_hirom_sram_size and
+        valid_hirom_destination_code and maybe_hirom) then
+        mapping = hirom_name
+    else 
+        mapping = lorom_name
+    end
+    return mapping
+end
+
+function seq_read(base_addr, n)
+    local rv = {}
+    local count = 0
+    while (count < n) do
+        local val = dict.snes("SNES_ROM_RD", base_addr + count)
+        count = count + 1
+        -- Kind of an ordering hack because Lua likes 1-based structures.
+        rv[count] = val
+    end
+    return rv
+end
+
+function string_from_bytes(base_addr, length)
+    local byte_table = seq_read(base_addr, length)
+    local s = ""
+    local count = 0
+    while (count < length) do
+        s = s .. string.char(byte_table[count + 1])
+        count = count + 1
+    end
+    return s
+end
+
+function word_from_two_bytes(base_addr)
+    local upper = dict.snes("SNES_ROM_RD", base_addr) << 8
+    local lower = dict.snes("SNES_ROM_RD", base_addr + 1)
+    return upper | lower
+end
+
+function print_header(internal_header)
+    local map_mode_str = lorom_name
+    if (internal_header["map_mode"] & 1) == 1 then map_mode_str = hirom_name end
+    print("Rom Title:\t\t" .. internal_header["rom_name"])
+    print("Map Mode:\t\t" .. map_mode_str)
+    print("Hardware Type:\t\t" .. hardware_type[internal_header["rom_type"]])
+    print("Rom Size Upper Bound:\t" .. rom_ubound[internal_header["rom_size"]])
+    print("SRAM Size:\t\t" .. ram_size[internal_header["sram_size"]])
+    print("Destination Code:\t" .. destination_code[internal_header["destination_code"]])
+    print("Developer:\t\t" .. developer_code[internal_header["developer_code"]])
+    print("Version:\t\t" .. hexfmt(internal_header["version"]))
+    print("Checksum:\t\t" ..  hexfmt(internal_header["checksum"]))
+end
+
+function get_header()
+    local map_adjust = 0 -- Might be set to 0x8000 depending on mapping.
+	local mapping = detect_mapping()
+    if mapping == lorom_name then map_adjust = 0x8000 end
+
+    -- Rom Registration Addresses (15 bytes)
+    local addr_maker_code = 0xFFB0 - map_adjust             -- 2 bytes
+    local addr_game_code = 0xFFB2 - map_adjust              -- 4 bytes
+    local addr_fixed_zero = 0xFFB6 - map_adjust             -- 7 bytes
+    local addr_expansion_ram_size = 0xFFBD - map_adjust     -- 1 byte
+    local addr_special_version_code = 0xFFBE - map_adjust   -- 1 byte
+
+    -- ROM Specification Addresses (32 bytes)
+    local addr_rom_name = 0xFFC0 - map_adjust           -- 21 bytes
+    local addr_map_mode = 0xFFD5 - map_adjust           -- 1 byte
+    local addr_rom_type = 0xFFD6 - map_adjust           -- 1 byte
+    local addr_rom_size = 0xFFD7 - map_adjust           -- 1 byte
+    local addr_sram_size = 0xFFD8 - map_adjust          -- 1 byte
+    local addr_destination_code = 0xFFD9 - map_adjust   -- 1 byte
+    local addr_developer_code = 0xFFDA - map_adjust     -- 1 byte (This is actually manufacturer ID)
+    local addr_version = 0xFFDB - map_adjust            -- 1 byte
+    local addr_compliment_check = 0xFFDC - map_adjust   -- 2 bytes 
+    local addr_checksum = 0xFFDD - map_adjust           -- 2 bytes
+
+    local internal_header = {
+        mapping = mapping,
+        rom_name = string_from_bytes(addr_rom_name, 21),
+        map_mode = dict.snes("SNES_ROM_RD", addr_map_mode),
+        rom_type = dict.snes("SNES_ROM_RD", addr_rom_type),
+        rom_size = dict.snes("SNES_ROM_RD", addr_rom_size),
+        sram_size = dict.snes("SNES_ROM_RD", addr_sram_size),
+        destination_code = dict.snes("SNES_ROM_RD", addr_destination_code),
+        developer_code = dict.snes("SNES_ROM_RD", addr_developer_code),
+        version = dict.snes("SNES_ROM_RD", addr_version),
+        compliment_check = word_from_two_bytes(addr_compliment_check),
+        checksum = word_from_two_bytes(addr_checksum)
+    }
+    return internal_header
+end
+
+function test() 
+    local internal_header = get_header()
+    print_header(internal_header)
+end
 
 -- local functions
 
@@ -420,7 +751,18 @@ local function process(process_opts, console_opts)
 	local rv = nil
 	local file 
 
+	--initialize device i/o for SNES
+	dict.io("IO_RESET")
+	dict.io("SNES_INIT")
+
+	local internal_header = get_header()
 	local snes_mapping = console_opts["mapper"]
+	if snes_mapping == "" then 
+		snes_mapping = lorom_name	
+		if (internal_header["map_mode"] & 1) == 1 then snes_mapping = hirom_name end
+		print("Mapping not provided, " .. snes_mapping .. " detected.")
+	end
+
 
 	--local ram_size = 448 --max LOROM RAM size 32KByte * 0x70-0x7D banks
 	--local ram_size = 32 --just a single bank of LOROM RAM
@@ -431,7 +773,11 @@ local function process(process_opts, console_opts)
 	local ramdumpfile = process_opts["dumpram_filename"]
 
 	local rom_size = console_opts["rom_size_kbyte"]
-	
+
+	if rom_size == 0 then
+		rom_size = rom_size_kb_tbl[internal_header["rom_size"]]
+		print("ROM Size not provided, " .. rom_ubound[internal_header["rom_size"]] .. " detected.")
+	end
 
 	-- SNES memory map banking
 	-- A15 always high for LOROM (A22 is typically low too)
@@ -457,16 +803,15 @@ local function process(process_opts, console_opts)
 	end
 
 
---initialize device i/o for SNES
-	dict.io("IO_RESET")
-	dict.io("SNES_INIT")
+
 
 
 --test cart by reading manf/prod ID
 	if test then
 
 		print("Testing SNES board");
-
+		test()
+		--[[
 		--SNES detect HiROM or LoROM & RAM
 
 		--SNES detect if able to read flash ID's
@@ -474,6 +819,7 @@ local function process(process_opts, console_opts)
 			print("ERROR unable to read flash ID")
 			return
 		end
+		--]]
 	end
 
 

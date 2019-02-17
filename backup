@@ -2,7 +2,7 @@
 
 from lib.database import get_database
 from lib.defs import Console
-from lib.menu import Menu
+from lib.menu import retry_prompt, select_item_index
 from lib.inlretro import dump_game
 from lib.inesheader import write_with_header
 from lib.util import input_or_exit
@@ -15,6 +15,7 @@ CONSOLE_OPTIONS = {
     Console.GENESIS: 'Genesis/Mega Drive',
     Console.NES: 'NES/Famicom',
     Console.N64: 'Nintendo 64',
+    Console.SNES: 'SNES/Super Famicom',
 }
 
 CONSOLE_EXTENSIONS = {
@@ -22,16 +23,41 @@ CONSOLE_EXTENSIONS = {
     Console.GENESIS: 'md',
     Console.NES: 'nes',
     Console.N64: 'z64',
-}    
+    Console.SNES: 'sfc',
+}
 
-def version_to_listing(version):
-    # Because of better, more granular cart info in the NES Cart DB, we can be more succint
-    if version.console == Console.NES or version.console == Console.FAMICOM:
+def main():
+    print("The INL Retro Cartridge Backup Helper")
+
+    done = False
+
+    while not done:
+        game = None
+        console = pick_console_or_exit()
+    
+        if console:
+            database = get_database(console)
+            while not game:
+                game = pick_game(database)
+            backup_game(game)
+        else:
+            done = True
+
+    print("Exiting...")
+
+def pick_console_or_exit():
+    consoles = [Console.GENESIS, Console.NES, Console.N64, Console.SNES]
+    options = map(lambda c: CONSOLE_OPTIONS[c], consoles)
+
+    print('\nSelect a console')
+    index = select_item_index(options, 'Exit')
+
+    return consoles[index] if index != None else None
+
+def pick_game(database):
+    def version_to_listing(version):
         return "%s - %s" % (version.region, version.console.value)
-    else:
-        return version.raw_name
 
-def pick_game():
     game = None
     
     while game == None:
@@ -45,7 +71,7 @@ def pick_game():
         # Search for results and have the user pick from them
         if len(search):
             name_suggestions = database.search(search)
-            name_index = menu.select_item_index(name_suggestions)
+            name_index = select_item_index(name_suggestions, 'Redo search')
 
         # If the user picked something, gather all versions of games by that name
         if name_index != None:
@@ -59,67 +85,51 @@ def pick_game():
         if len(versions) == 1:
             game = versions[0]
         elif len(versions) > 1:
-            print("\nWhich version of %s?" % name)
+            print("\nWhich region/console for %s?" % name)
             version_suggestions = map(version_to_listing, versions)
-            version_index = menu.select_item_index(version_suggestions)
+            version_index = select_item_index(version_suggestions, 'Redo game search')
                 
         if version_index != None:
             game = versions[version_index]
 
     return game
 
-def pick_console():
-    consoles = [Console.GENESIS, Console.NES, Console.N64]
-    options = map(lambda c: CONSOLE_OPTIONS[c], consoles)
-    index = menu.select_item_index(options)
+def backup_game(game):
+    print("\nCreating backup for %s" % game.name)
 
-    return consoles[index]
+    # This is a little bit awkward, because we need the INLretro subprocess to write to
+    # the tempfile first if this is NES/Famicom. Also: not sure if this works in Windows,
+    # but probably neither does anything else in here.
+    bin_fd, bin_filename = mkstemp()
+    close(bin_fd)
 
-def get_extension(game):
-    if game.console == Console.NES or game.console == Console.FAMICOM:
-        return 'nes'
-    elif game.console == Console.GENESIS:
-        return 'md'
+    try:
+        retry = False
+        if dump_game(game, bin_filename):
+            to_filename = "roms/%s (%s).%s" % (
+                game.name,
+                game.region,
+                CONSOLE_EXTENSIONS[game.console]
+            )
 
-    return ''
+            # NES/Famicom dumps need to write the final file with the NES2.0 header
+            if game.console == Console.NES or game.console == Console.FAMICOM:
+                write_with_header(game, bin_filename, to_filename)
+            else:
+                copyfile(bin_filename, to_filename)
 
-print("The INL Retro Cartridge Backup Helper")
-
-menu = Menu()
-console = pick_console()
-database = get_database(console)
-game = pick_game()
-
-print("Creating backup for %s" % game.name)
-
-# This is a little bit awkward, because we need the INLretro subprocess to write to
-# the tempfile first if this is NES/Famicom. Also: not sure if this works in Windows,
-# but probably neither does anything else in here.
-bin_fd, bin_filename = mkstemp()
-close(bin_fd)
-
-try:
-    if dump_game(game, bin_filename):
-        to_filename = "roms/%s (%s).%s" % (
-            game.name,
-            game.region,
-            CONSOLE_EXTENSIONS[game.console]
-        )
-
-        # NES/Famicom dumps need to write the final file with the NES2.0 header
-        if console == Console.NES or console == Console.FAMICOM:
-            write_with_header(game, bin_filename, to_filename)
-        else:
-            copyfile(bin_filename, to_filename)
-
-            print("Wrote backup to\n\t%s" % to_filename)
+            print("\nWrote backup to\n\t%s" % to_filename)
     
-    else:
-        print("Failed to read data from the cartridge.")
+        else:
+            print("\nFailed to read data from the cartridge.")
+            retry = retry_prompt('Retry?', True)
 
-finally:
-    # Temp file cleanup
-    remove(bin_filename)
+    finally:
+        # Temp file cleanup
+        remove(bin_filename)
 
-# Bye!
-print("Exiting...")
+    if retry:
+        backup_game(game)
+
+if __name__ == "__main__":
+    main()

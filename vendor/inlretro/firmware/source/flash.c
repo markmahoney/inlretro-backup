@@ -460,6 +460,9 @@ uint8_t flash_buff( buffer *buff ) {
 
 				write_page_tssop( bank, (0x80 | addrH), buff, nes_cpu_wr, nes_cpu_rd );
 			}
+			if (buff->mapper == GTROM) {
+				write_page_verify( (0x80+addrH), buff, gtrom_prgrom_flash_wr);
+			}
 			break;
 
 		case CHRROM:		//$0000

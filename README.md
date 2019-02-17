@@ -35,6 +35,7 @@ You can run `deactivate` when you're done using the backup utility to disable vi
 - NES/Famicom
 - Genesis/Mega Drive
 - Nintendo 64
+- Super Nintendo
 
 NES/Famicom cartridge support is tethered to the mapper sets supported by the INLretro, though that list is pretty substantial at this point. However, you won't have much luck backing up weirdo games yet.
 
@@ -51,7 +52,6 @@ If you _don't_ have the 2.3 firmware installed, you'll have to follow directions
 ## TODOs
 
 - Windows support?
-- Improve XML parser for no-intro db systems (names/regions are sometimes inconsistent)
 - Support the remaining console cartridge adapters
 - Perform CRC checks on the backed up ROMs
 - Improve INES header generation

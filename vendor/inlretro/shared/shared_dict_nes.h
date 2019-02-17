@@ -59,6 +59,7 @@
 #define MMC4_PRG_SOP_FLASH_WR		0x10	//current bank must be selected, & needs cur_bank set prior to calling
 #define MMC4_CHR_FLASH_WR		0x11	//needs cur_bank set prior to calling
 #define MAP30_PRG_FLASH_WR		0x12	//needs cur_bank set prior to calling
+#define GTROM_PRG_FLASH_WR		0x13	//desired bank must be selected
 
 
 #define	SET_CUR_BANK			0x20
@@ -71,6 +72,8 @@
 //send start address in operand, doesn't have to be page boundary
 //but A13 and /A13 get set once based on provided address.
 #define	PPU_PAGE_WR_LFSR		0x23	
+
+#define	SET_NUM_PRG_BANKS		0x24	//used for determining banktable structure for mapper 11 and such
 
 //=============================================================================================
 //	OPCODES WITH OPERAND AND RETURN VALUE plus SUCCESS/ERROR_CODE
@@ -88,7 +91,8 @@
 #define NES_PPU_RD			0x82	//RL=3
 
 //doesn't have operands just returns sensed CIRAM A10 mirroring 
-//#define CIRAM_A10_MIRROR		0x83	//RL=3
+//now used to detect old firmware versions so NESmaker folks don't have to update firmware
+#define CIRAM_A10_MIRROR		0x83	//RL=3
 ////returns VERT/HORIZ/1SCNA/1SCNB values:
 //	#define	MIR_1SCNA	0x10
 //	#define	MIR_1SCNB	0x11
@@ -99,5 +103,6 @@
 
 #define	GET_CUR_BANK			0x85	//RL=3
 #define	GET_BANK_TABLE			0x86	//RL=4 16bit value so 2 bytes need returned
+#define	GET_NUM_PRG_BANKS		0x87	//RL=3 
 
 #endif

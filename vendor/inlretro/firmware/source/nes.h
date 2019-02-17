@@ -39,6 +39,7 @@ void 	mmc4_prgrom_sop_flash_wr( uint16_t addr, uint8_t data );
 void 	mmc4_chrrom_flash_wr( uint16_t addr, uint8_t data );
 void 	cdream_chrrom_flash_wr( uint16_t addr, uint8_t data );
 uint8_t	map30_prgrom_flash_wr( uint16_t addr, uint8_t data );
+uint8_t	gtrom_prgrom_flash_wr( uint16_t addr, uint8_t data );
 void 	ppu_page_wr_lfsr( uint16_t addr, uint8_t data );
 
 

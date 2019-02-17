@@ -2,9 +2,10 @@ from lib.defs import Console
 from fuzzywuzzy import fuzz, process
 from lib.xml_parsers import parse_nes_cart_db, parse_no_intro_db
 
-NES_DB_PATH = 'vendor/xml/nesdb.xml'
 GENESIS_DB_PATH = 'vendor/xml/Sega - Mega Drive - Genesis (20190120-191543).dat'
+NES_DB_PATH = 'vendor/xml/nesdb.xml'
 N64_DB_PATH = 'vendor/xml/Nintendo - Nintendo 64 (BigEndian) (20190124-212209).dat'
+SNES_DB_PATH = 'vendor/xml/Nintendo - Super Nintendo Entertainment System (Combined) (20190127-074433).dat'
 
 databases = {}
 
@@ -21,14 +22,13 @@ class Database:
         self.search_corpus = self.search_cache.keys()
 
     # Returns the set of search strings most closely matching the user input
-    def search(self, input):
+    def search(self, input, scorer = fuzz.token_set_ratio, cutoff = 70):
         suggestions = process.extractBests(
             input,
             self.search_corpus,
             limit=20,
-            # this scorer returns the most sensible results for strings like "mario 2"
-            scorer=fuzz.token_set_ratio,
-            score_cutoff=70
+            scorer=scorer,
+            score_cutoff=cutoff
         )
         
         # Sort by score then name (multiply score by -1 so we sort largest to smallest)
@@ -65,5 +65,9 @@ def get_database(console):
         if not Console.N64 in databases:
             databases[Console.N64] = Database(parse_no_intro_db, N64_DB_PATH)
         database = databases[Console.N64]
+    elif console == Console.SNES:
+        if not Console.SNES in databases:
+            databases[Console.SNES] = Database(parse_no_intro_db, SNES_DB_PATH)
+        database = databases[Console.SNES]
         
     return database

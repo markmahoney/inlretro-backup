@@ -1645,7 +1645,8 @@ void software_AXL_CLK();
 #endif //STM_CORE
 
 
-#ifdef STM_NES	
+#if defined (STM_NES) || defined(STM_ADAPTER)
+
 #define EXT_IP_PU(bank, pin)		bank->MODER &= ~(MODER_OP<<(pin*2)); bank->PUPDR |=  (PUPDR_PU<<(pin*2))
 #define EXT_IP_FL(bank, pin)		bank->MODER &= ~(MODER_OP<<(pin*2)); bank->PUPDR &= ~(PUPDR_PU<<(pin*2))
 #define EXT_OP(bank, pin)		bank->MODER |=  (MODER_OP<<(pin*2))

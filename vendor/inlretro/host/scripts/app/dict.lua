@@ -249,7 +249,7 @@ local function io( opcode, operand, misc, data )
 end
 
 -- external call for nes dictionary
-local function nes( opcode, operand, misc, data )
+local function nes( opcode, operand, misc, data, test_opcode )
 
 	assert ( op_nes[opcode] , "\nERROR undefined opcode: " .. opcode .. " must be defined in shared_dict_nes.h")
 
@@ -276,6 +276,16 @@ local function nes( opcode, operand, misc, data )
 		data_len =   data:byte(RETURN_LEN_IDX)
 	end
 	--print("error:", error_code, "data_len:",  data_len)
+	
+	--hack to test if running old firmware version for NESmaker legacy compatability
+	if test_opcode then
+		--just want to report if opcode succeeded or not
+		if error_code == err_codes["SUCCESS"] then
+			return true
+		else
+			return false
+		end
+	end
 	
 	assert ( (error_code == err_codes["SUCCESS"]), "\n ERROR!!! problem with opcode: " .. opcode .. " operand: " .. operand .. " misc: " .. misc .. " device error code: " .. error_code)
 

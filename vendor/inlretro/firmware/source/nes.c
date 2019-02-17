@@ -16,6 +16,7 @@
 //global variables
 uint8_t cur_bank;	//used by some flash algos, must be initialized prior to depending on it
 uint16_t bank_table;	//address offset of bank table for mapper writes with bus conflicts
+uint8_t	num_prg_banks;	//used to determine banktable for mappers like colordreams
 
 
 /* Desc:Function takes an opcode which was transmitted via USB
@@ -68,6 +69,9 @@ uint8_t nes_call( uint8_t opcode, uint8_t miscdata, uint16_t operand, uint8_t *r
 		case SET_BANK_TABLE:	
 			bank_table = operand;
 			break;
+		case SET_NUM_PRG_BANKS:	
+			num_prg_banks = operand;
+			break;
 		case NROM_PRG_FLASH_WR:	
 			nrom_prgrom_flash_wr( operand, miscdata );
 			break;
@@ -104,6 +108,9 @@ uint8_t nes_call( uint8_t opcode, uint8_t miscdata, uint16_t operand, uint8_t *r
 		case MAP30_PRG_FLASH_WR:	
 			map30_prgrom_flash_wr( operand, miscdata );
 			break;
+		case GTROM_PRG_FLASH_WR:	
+			gtrom_prgrom_flash_wr( operand, miscdata );
+			break;
 
 
 		//8bit return values:
@@ -135,6 +142,10 @@ uint8_t nes_call( uint8_t opcode, uint8_t miscdata, uint16_t operand, uint8_t *r
 			rdata[RD_LEN] = HWORD_LEN;
 			rdata[RD0] = bank_table;
 			rdata[RD1] = bank_table>>8;
+			break;
+		case GET_NUM_PRG_BANKS:	
+			rdata[RD_LEN] = BYTE_LEN;
+			rdata[RD0] = num_prg_banks;
 			break;
 		case PPU_PAGE_WR_LFSR:
 			ppu_page_wr_lfsr( operand, miscdata );
@@ -1329,23 +1340,31 @@ void mmc4_chrrom_flash_wr( uint16_t addr, uint8_t data )
 void cdream_chrrom_flash_wr( uint16_t addr, uint8_t data )
 {
 
+
 	uint8_t rv;
 
-	//the CHR-ROM bank is in mapper register bits 4-7
-	uint8_t mapper_val = cur_bank << 4;
+	//uint8_t num_prg_banks = 16;	// 4: 128KB, 8: 256KB, 16: 512KB
+
+	//select first bank
+	//nes_cpu_wr(0xFF9E, 0);
 
 	//unlock the flash
-	nes_cpu_wr(bank_table+0x20, 0x20);
+	//nes_cpu_wr(bank_table+0x20, 0x20);	//this assumes a 256Byte bank table!
+	//nes_cpu_wr(bank_table+0x08, 0x20);	//this assumes a 128KB PRG-ROM banktable!
+						// 00 01 02 03 - 10 11 12 13 - 20 21 22 23 - ...
+	nes_cpu_wr( bank_table+(num_prg_banks*2), 0x20);	//need the #2 CHR-ROM bank
 	nes_ppu_wr(0x1555, 0xAA);
 
-	nes_cpu_wr(bank_table+0x10, 0x10);
+	//nes_cpu_wr(bank_table+0x10, 0x10);
+	nes_cpu_wr( bank_table+(num_prg_banks*1), 0x10);
 	nes_ppu_wr(0x0AAA, 0x55);
 
-	nes_cpu_wr(bank_table+0x20, 0x20);
+	//nes_cpu_wr(bank_table+0x20, 0x20);
+	nes_cpu_wr( bank_table+(num_prg_banks*2), 0x20);
 	nes_ppu_wr(0x1555, 0xA0);
 
 	//select desired bank for the write
-	nes_cpu_wr(bank_table+mapper_val, mapper_val);
+	nes_cpu_wr( bank_table+(num_prg_banks*cur_bank), (cur_bank<<4));
 	//write the byte
 	nes_ppu_wr(addr, data);
 
@@ -1378,6 +1397,34 @@ uint8_t map30_prgrom_flash_wr( uint16_t addr, uint8_t data )
 
 	//select desired bank and write data
 	nes_cpu_wr(0xC000, cur_bank);
+	nes_cpu_wr(addr, data);
+
+	do {
+		rv = nes_cpu_rd(addr);
+		usbPoll();	//orignal kazzo needs this frequently to slurp up incoming data
+	} while (rv != nes_cpu_rd(addr));
+
+	return rv;
+}
+
+
+/* Desc:NES GTROM (mapper 111) PRG-ROM FLASH Write
+ * Pre: nes_init() setup of io pins
+ * 	desired bank already selected
+ * Post:Byte written and ready for another write
+ * Rtn:	None
+ */
+uint8_t gtrom_prgrom_flash_wr( uint16_t addr, uint8_t data )
+{
+
+	uint8_t rv;
+
+	//unlock the flash
+	nes_cpu_wr(0xD555, 0xAA);
+	nes_cpu_wr(0xAAAA, 0x55);
+	nes_cpu_wr(0xD555, 0xA0);
+
+	//write the data
 	nes_cpu_wr(addr, data);
 
 	do {

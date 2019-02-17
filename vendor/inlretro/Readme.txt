@@ -100,6 +100,7 @@ bricked your device, etc.
 
 1) GET THE SOFTWARE
 
+On Windows:
 Go to the st.com link below.  At the bottom there's a "GET SOFTWARE"
 section, download the STSW-STM32080 item.  This is written for v3.0.6
 https://www.st.com/en/development-tools/stsw-stm32080.html
@@ -107,6 +108,13 @@ https://www.st.com/en/development-tools/stsw-stm32080.html
 Alternatively you can save the hassle of creating an STmicro account 
 by downloading directly from the following link if you would like:
 https://www.dropbox.com/s/gwcvd3dqwkbzsv9/en.stsw-stm32080.zip?dl=0
+
+On Linux:
+The dfusedemo is windows only, there is a linux alternative called
+dfu-util this may work for mac too.  Read through the following 
+instructions to understand the basic steps.  Then
+See the "Linux dfu-util" instructions at the end.
+
 
 
 2) INSTALL THE SOFTWARE
@@ -259,6 +267,28 @@ in DFU mode, try this step again..
    Unplug the USB cable and plug it back in.
    You should see "INL Retro-Prog" in devices & printers
    and the device should be running the latest firmware now!
+
+
+
+
+LINUX DFU-UTIL STEPS:
+  
+  sudo apt-get dfu-util
+  
+  Put device into dfu mode as explained in step 4 above
+  
+  verify you can see the device
+  
+  dfu-util -l
+  
+  get the "alt" with name of @Internal Flash use that number in the -a for example:
+  
+  Found DFU: [0483:df11] ver=2200, devnum=18, cfg=1, intf=0, path="1-1", alt=1, name="@Option Bytes  /0x1FFFF800/01*016 e", serial="FFFFFFFEFFFF"
+  Found DFU: [0483:df11] ver=2200, devnum=18, cfg=1, intf=0, path="1-1", alt=0, name="@Internal Flash  /0x08000000/064*0002Kg", serial="FFFFFFFEFFFF"
+  
+  (navigate to the firmware/DFU_release directory)
+  Upgrade Command example:
+  sudo dfu-util -d 0483:* -a 0 -D INLretro6_PCBv2_0_FWv2_03_01.dfu
 
 
 
@@ -467,7 +497,6 @@ make clean still deletes lua object files, so this process must be reperformed i
 
 AVR FIRMWARE:
 Download and Install WinAVR
-http://www.webring.org/l/rd?ring=avr;id=59;url=http%3A%2F%2Fwinavr%2Esourceforge%2Enet%2Findex%2Ehtml  
 	optional: install programmer's notepad has handy feature to make clean, all, program in tools menu
 		this is nifty if you are scared of the command prompt for some strange reason...
 	installation process should modify PATH environment variables for you.

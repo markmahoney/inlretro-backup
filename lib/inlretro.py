@@ -28,6 +28,7 @@ CONSOLE_TO_INLRETRO = {
     Console.GENESIS: 'genesis',
     Console.NES: 'nes',
     Console.N64: 'n64',
+    Console.SNES: 'snes',
 }
 
 def nes_args(game, dump_path):
@@ -63,7 +64,7 @@ def console_args(game, dump_path):
 
 # Returns True if we get an exit code of 0 after shelling out to the INLretro, else False
 def dump_game(game, dump_path):
-    if (game.console == Console.NES or game.console == Console.FAMICOM):
+    if game.console == Console.NES or game.console == Console.FAMICOM:
         cart_args = nes_args(game, dump_path)
     else:
         cart_args = console_args(game, dump_path)

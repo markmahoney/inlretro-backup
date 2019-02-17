@@ -172,6 +172,7 @@
 	#define SUN4	68
 	#define FME7	69	//SUNSOFT-5 with synth
 	#define HDIVER	78
+	#define GTROM	111
 	#define DxROM	205
 	#define MM2	253
 	#define DPROM	254	//just a random mapper number for whatever I need it for
