@@ -8,6 +8,9 @@ local nes = require "scripts.app.nes"
 local dump = require "scripts.app.dump"
 local flash = require "scripts.app.flash"
 local time = require "scripts.app.time"
+local files = require "scripts.app.files"
+local swim = require "scripts.app.swim"
+local buffers = require "scripts.app.buffers"
 
 -- file constants & variables
 local mapname = "BxROM"
@@ -16,6 +19,31 @@ local banktable_base = 0xFF94 --Lizard
 --local rom_FF_addr = 0x8000
 
 -- local functions
+local function create_header( file, prgKB, chrKB )
+
+	local mirroring = nes.detect_mapper_mirroring()
+
+	--write_header( file, prgKB, chrKB, mapper, mirroring )
+	nes.write_header( file, prgKB, 0, op_buffer[mapname], mirroring)
+end
+
+local function dump_cic_message( debug ) 
+
+	--test reading back CIC version
+	dict.io("SWIM_INIT", "SWIM_ON_A0")	
+	--dict.io("SWIM_INIT", "SWIM_ON_EXP0")	
+	if swim.start() then
+		swim.read_stack()
+	else
+		print("ERROR trying to read back CIC signature stack data")
+	end
+	swim.stop_and_reset()
+
+
+	dict.io("IO_RESET")	
+	dict.io("NES_INIT")	
+
+end
 
 
 --read PRG-ROM flash ID
@@ -239,12 +267,18 @@ local function process(process_opts, console_opts)
 		print("EXP0 pull-up test:", dict.io("EXP0_PULLUP_TEST"))	
 
 		prgrom_manf_id(true)
+		--dump_cic_message(  ) 
+
+	--
 	end
 
 --dump the cart to dumpfile
 	if read then
 		print("\nDumping PRG-ROM...")
 		file = assert(io.open(dumpfile, "wb"))
+
+		--create header: pass open & empty file & rom sizes
+		create_header(file, prg_size, chr_size)
 
 		--TODO find bank table to avoid bus conflicts!
 		--dump cart into file
@@ -324,6 +358,13 @@ local function process(process_opts, console_opts)
 		assert(file:close())
 
 		print("DONE post dumping PRG-ROM")
+
+		--compare the flash file vs post dump file
+		if (files.compare( verifyfile, flashfile, true ) ) then
+			print("\nSUCCESS! Flash verified")
+		else
+			print("\n\n\n FAILURE! Flash verification did not match")
+		end
 	end
 
 	dict.io("IO_RESET")

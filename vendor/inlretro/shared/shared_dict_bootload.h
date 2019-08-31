@@ -75,13 +75,15 @@
 
 //application code version
 //this is updated more frequently than the USB firmware version
-//#define		GET_APP_VER	12	//RL=3  0-error, 1-len, 2-version
-//just set pointer to 0x08000800 and read 4 bytes for now
+#define		GET_APP_VER	12	//RL=3  0-error, 1-len, 2-version  (2345-version if string "AV##")
+//STM32 just set pointer to 0x08000800 and read 4 bytes for now
+//AVR has to use this method..
 
 	//APPLICATION VERSION NUMBERS
 	//#define	APP_VERSION	"AV00"	//released with usb firmware v2.3
 	//main update was addition of usb firmware updater
 	//also added the bootloader pointer memory access
 	//include ram functions & starting to have NES flash algos return data
+	#define	APP_VERSION	3	//released 8/16 with N64 dump fix and MMC2/4 support
 
 #endif

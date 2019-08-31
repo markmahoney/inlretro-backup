@@ -4,6 +4,8 @@ local romonly = {}
 -- import required modules
 local dict = require "scripts.app.dict"
 local dump = require "scripts.app.dump"
+local files = require "scripts.app.files"
+local jtag = require "scripts.app.jtag"
 
 -- file constants
 local mapname = "ROMONLY"
@@ -46,7 +48,25 @@ local function process(process_opts, console_opts)
 
     -- test the cart
 	if process_opts["test"] then
-		unsupported("test")	
+		print("no test function yet")
+--		unsupported("test")	
+
+		-- 5v - 3v power cycle test
+		--[[ 
+		dict.io("GB_POWER_3V")
+		print("GBP high 3v GBA")
+		jtag.sleep(1)
+		dict.io("GB_POWER_5V")
+		print("GBP low 5v GB")
+		jtag.sleep(1)
+		dict.io("GB_POWER_3V")
+		print("GBP high 3v GBA")
+		jtag.sleep(1)
+		dict.io("GB_POWER_5V")
+		print("GBP low 5v GB")
+		jtag.sleep(1)
+		print("GBP reset (pullup) = 3v")
+		--]]
 	end
 
     -- dump the cart to dumpfile
@@ -89,6 +109,12 @@ local function process(process_opts, console_opts)
 		--close file
 		assert(file:close())
 		print("DONE post dumping ROM")
+
+		if (files.compare( process_opts["verify_filename"], "ignore/Boxxle.gb", true ) ) then
+			print("\nSUCCESS! Flash verified")
+		else
+			print("\n\n\n FAILURE! Flash verification did not match")
+		end
 	end
 
 	dict.io("IO_RESET")

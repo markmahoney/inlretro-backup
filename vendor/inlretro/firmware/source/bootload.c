@@ -120,18 +120,21 @@ uint8_t bootload_call( uint8_t opcode, uint8_t miscdata, uint16_t operand, uint8
 			//can use the pointer to read 4bytes at 0x08000800
 			//which is the begining of application code space
 			//should include ascii "AV00" with the digits for version
-//		case GET_APP_VER:
-//			rdata[RD_LEN] = WORD_LEN;
-//			rdata[RD0] = app_version[0];
-//			rdata[RD1] = app_version[1];
-//			rdata[RD2] = app_version[2];
-//			rdata[RD3] = app_version[3];
-//			break;
+#endif //STM_CORE
+			//application version supported by all devices starting with AV03
+		case GET_APP_VER:
+			rdata[RD_LEN] = BYTE_LEN;
+			rdata[RD0] = APP_VERSION; //defined in shared_dict_bootload.h
+			//rdata[RD_LEN] = WORD_LEN;
+			//rdata[RD0] = (uint8_t)'A';
+			//rdata[RD1] = (uint8_t)'V';
+			//rdata[RD2] = (uint8_t)'0';
+			//rdata[RD3] = (uint8_t)'3';
+			break;
 
 		default:
 			 //opcode doesn't exist
 			 return ERR_UNKN_BOOTLOAD_OPCODE;
-#endif
 	}
 	
 	return SUCCESS;

@@ -6,6 +6,7 @@ local mbc1 = {}
 local dict = require "scripts.app.dict"
 local dump = require "scripts.app.dump"
 local flash = require "scripts.app.flash"
+local files = require "scripts.app.files"
 
 -- file constants
 local mapname = "MBC1"
@@ -69,7 +70,8 @@ local function process(process_opts, console_opts)
 
 	-- TODO: test the cart
 	if process_opts["test"] then
-		unsupported("test")
+		print("no test function yet")
+		--unsupported("test")
 	end
 
 	-- Dump the cart to dumpfile
@@ -114,6 +116,11 @@ local function process(process_opts, console_opts)
 		assert(file:close())
 
 		print("DONE post dumping ROM")
+		if (files.compare( process_opts["verify_filename"], "ignore/madden96_bank0.gb", true ) ) then
+			print("\nSUCCESS! Flash verified")
+		else
+			print("\n\n\n FAILURE! Flash verification did not match")
+		end
 	end
 
 	dict.io("IO_RESET")

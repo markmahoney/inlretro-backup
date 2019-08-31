@@ -10,11 +10,19 @@ local flash = require "scripts.app.flash"
 local time = require "scripts.app.time"
 local files = require "scripts.app.files"
 local time = require "scripts.app.time"
+local buffers = require "scripts.app.buffers"
 
 -- file constants & variables
 local mapname = "GTROM"
 
 -- local functions
+
+local function create_header( file, prgKB, chrKB )
+
+	--write_header( file, prgKB, chrKB, mapper, mirroring )
+	nes.write_header( file, prgKB, chrKB, op_buffer[mapname], 0)
+end
+
 
 --read PRG-ROM flash ID
 local function prgrom_manf_id( debug )
@@ -233,8 +241,10 @@ local function process(process_opts, console_opts)
 	
 	local rv = nil
 	local file 
-	-- TODO: Cleanup needed here, support chrrom, make this look more like other mapper scripts.
 	local prg_size = console_opts["prg_rom_size_kb"]
+	local chr_size = console_opts["chr_rom_size_kb"]
+	local wram_size = console_opts["wram_size_kb"]
+	local mirror = console_opts["mirror"]
 
 	--local filetype = "nes"
 	local filetype = "bin"
@@ -265,6 +275,9 @@ local function process(process_opts, console_opts)
 	if read then
 		print("\nDumping PRG-ROM...")
 		file = assert(io.open(dumpfile, "wb"))
+
+		--create header: pass open & empty file & rom sizes
+		create_header(file, prg_size, chr_size)
 
 		--dump cart into file
 		time.start()

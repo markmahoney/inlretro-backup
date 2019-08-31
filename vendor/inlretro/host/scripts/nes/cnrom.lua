@@ -9,13 +9,23 @@ local dump = require "scripts.app.dump"
 local flash = require "scripts.app.flash"
 local swim = require "scripts.app.swim"
 local ciccom = require "scripts.app.ciccom"
+local buffers = require "scripts.app.buffers"
 
 -- file constants & variables
 local mapname = "CNROM"
-local banktable_base = 0xFFC8 --galf
-local rom_FF_addr = 0x8008 --galf
+local banktable_base = 0x8000 --alwa
+local rom_FF_addr = banktable_base+3 --generic 32KB CHR-ROM
 
 -- local functions
+
+local function create_header( file, prgKB, chrKB )
+
+	local mirroring = nes.detect_mapper_mirroring()
+
+	--write_header( file, prgKB, chrKB, mapper, mirroring )
+	nes.write_header( file, prgKB, chrKB, op_buffer[mapname], mirroring)
+end
+
 
 local function find_banktable( debug )
 
@@ -100,6 +110,8 @@ local function dump_prgrom( file, rom_size_KB, debug )
 
 	--same as NROM
 	local KB_per_read = 32
+	if rom_size_KB < KB_per_read then KB_per_read = rom_size_KB end
+
 	local num_reads = rom_size_KB / KB_per_read
 	local read_count = 0
 	local addr_base = 0x08	-- $8000
@@ -376,6 +388,9 @@ local function process(process_opts, console_opts)
 	local chr_size = console_opts["chr_rom_size_kb"]
 	local wram_size = console_opts["wram_size_kb"]
 
+	local filetype = "nes"
+	--local filetype = "bin"
+	--
 --initialize device i/o for NES
 	dict.io("IO_RESET")
 	dict.io("NES_INIT")
@@ -398,8 +413,11 @@ local function process(process_opts, console_opts)
 
 		file = assert(io.open(dumpfile, "wb"))
 
+		--create header: pass open & empty file & rom sizes
+		create_header(file, prg_size, chr_size)
+
 		--dump cart into file
-		dump_prgrom(file, prg_size, false)
+		dump_prgrom(file, prg_size, true)
 		dump_chrrom(file, chr_size, true)
 
 		--close file
@@ -469,6 +487,23 @@ local function process(process_opts, console_opts)
 	if program then
 		--open file
 		file = assert(io.open(flashfile, "rb"))
+
+		if filetype == "nes" then
+		--advance past the 16byte header
+		--TODO set mirroring bit via ciccom
+			local buffsize = 1
+			local byte
+			local count = 1
+
+			for byte in file:lines(buffsize) do
+				local data = string.unpack("B", byte, 1)
+				--print(string.format("%X", data))
+				count = count + 1
+				if count == 17 then break end
+			end
+		end
+
+
 
 		--flash cart
 		flash_prgrom(file, prg_size, false)

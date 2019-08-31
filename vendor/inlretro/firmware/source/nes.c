@@ -51,8 +51,11 @@ uint8_t nes_call( uint8_t opcode, uint8_t miscdata, uint16_t operand, uint8_t *r
 		case NES_CPU_WR:	
 			nes_cpu_wr( operand, miscdata );
 			break;
-		case NES_M2_LOW_WR:	
+		case M2_LOW_WR:	
 			nes_m2_low_wr( operand, miscdata );
+			break;
+		case M2_HIGH_WR:	
+			nes_m2_high_wr( operand, miscdata );
 			break;
 		case NES_DUALPORT_WR:	
 			nes_dualport_wr( operand, miscdata );
@@ -99,6 +102,9 @@ uint8_t nes_call( uint8_t opcode, uint8_t miscdata, uint16_t operand, uint8_t *r
 		case MMC4_PRG_SOP_FLASH_WR:	
 			mmc4_prgrom_sop_flash_wr( operand, miscdata );
 			break;
+		case MMC4_PRG_FLASH_WR:	
+			mmc4_prgrom_flash_wr( operand, miscdata );
+			break;
 		case MMC4_CHR_FLASH_WR:	
 			mmc4_chrrom_flash_wr( operand, miscdata );
 			break;
@@ -110,6 +116,9 @@ uint8_t nes_call( uint8_t opcode, uint8_t miscdata, uint16_t operand, uint8_t *r
 			break;
 		case GTROM_PRG_FLASH_WR:	
 			gtrom_prgrom_flash_wr( operand, miscdata );
+			break;
+		case MMC3S_PRG_FLASH_WR:	
+			mmc3s_prgrom_flash_wr( operand, miscdata );
 			break;
 
 
@@ -397,13 +406,14 @@ uint8_t	nes_cpu_rd( uint16_t addr )
 	ADDR_SET(addr);
 	
 	//set M2 and /ROMSEL
-	M2_HI();
 	if( addr >= 0x8000 ) {	//addressing cart rom space
 		ROMSEL_LO();	//romsel trails M2 during CPU operations
 	}
+	M2_HI();
 
 	//couple more NOP's waiting for data
 	//zero nop's returned previous databus value
+//wdt_reset();	
 	NOP();	//one nop got most of the bits right
 	NOP();	//two nop got all the bits right
 	NOP();	//add third nop for some extra
@@ -455,12 +465,21 @@ void	nes_cpu_wr( uint16_t addr, uint8_t data )
 	DATA_SET(data);
 
 	//set M2 and /ROMSEL
-	M2_HI();
+//this was bad for $6000 WRAM decoding!
+//we're creating our own /ROMSEL delay which can cause problems!!!
 	if( addr >= 0x8000 ) {	//addressing cart rom space
 		ROMSEL_LO();	//romsel trails M2 during CPU operations
 	}
+	M2_HI();
 
 	//give some time
+	NOP();
+	NOP();
+	NOP();	//Writting  to MMC4 SRAM 2 NOPs wasn't enough..
+	NOP();
+	NOP();
+	NOP();
+	NOP();
 	NOP();
 	NOP();
 
@@ -529,6 +548,69 @@ void	nes_m2_low_wr( uint16_t addr, uint8_t data )
 	//Free data bus
 	DATA_IP();
 }
+
+
+/* Desc:NES CPU Write, but M2 remains high
+ * 	Created for action53 mapper where board's level shifter /OE pin
+ * 	is driven by inverse of M2.  So for address to be applied to flash,
+ * 	M2 must be high.
+ *	A15 decoded to enable /ROMSEL
+ * Note:addrH bit7 has no effect (ends up on PPU /A13)
+ *	EXP0 as-is
+ * Pre: nes_init() setup of io pins
+ * Post:data latched by anything listening on the bus
+ * 	address left on bus
+ * 	data left on bus, but pullup only
+ * Rtn:	None
+ */
+void	nes_m2_high_wr( uint16_t addr, uint8_t data )
+{
+	M2_HI();
+
+	//Float EXP0 as it should be in NES
+	//EXP0_IP_FL();
+
+	//need for whole function
+	//_DATA_OP();
+
+	//set addrL
+	//ADDR_OUT = addrL;
+	//latch addrH
+	//DATA_OUT = addrH;
+	//_AHL_CLK();	
+	ADDR_SET(addr);
+
+	//PRG R/W LO
+	PRGRW_LO();
+
+	//put data on bus
+	DATA_OP();
+	DATA_SET(data);
+
+	//set M2 and /ROMSEL
+//	M2_HI();
+	if( addr >= 0x8000 ) {	//addressing cart rom space
+		ROMSEL_LO();	//romsel trails M2 during CPU operations
+	}
+
+	//give some time
+	NOP();
+	NOP();
+
+	//latch data to cart memory/mapper
+//	M2_LO();
+	ROMSEL_HI();
+
+	//retore PRG R/W to default
+	PRGRW_HI();
+
+	//Free data bus
+	DATA_IP();
+
+	//return M2 to default state
+	M2_LO();
+}
+
 
 
 
@@ -775,8 +857,67 @@ uint8_t nes_cpu_page_rd_poll( uint8_t *data, uint8_t addrH, uint8_t first, uint8
 		} else {
 			usbPoll();	//Call usbdrv.h usb polling while waiting for data
 		}
+
+		//add some delay for 4-8MByte 3v flash
+		NOP();
+
 		//latch data
 		DATA_RD(data[i]);
+		//set lower address bits
+		//ADDRL(++first);	THIS broke things, on stm adapter because macro expands it twice!
+		first++;
+		ADDRL(first);
+	}
+
+	//return bus to default
+	M2_LO();
+	ROMSEL_HI();
+	
+	//return index of last byte read
+	return i;
+}
+
+
+uint8_t nes_cpu_page_rd_toggle( uint8_t *data, uint8_t addrH, uint8_t first, uint8_t len, uint8_t poll )
+{
+	uint8_t i;
+
+	//set address bus
+	ADDRH(addrH);
+	
+	//set M2 and /ROMSEL
+	if( addrH >= 0x80 ) {	//addressing cart rom space
+		ROMSEL_LO();	//romsel trails M2 during CPU operations
+	}
+
+	//set lower address bits
+	ADDRL(first);		//doing this prior to entry and right after latching
+	//extra NOP was needed on stm6 as address hadn't settled in time for the very first read
+	NOP();	
+				//gives longest delay between address out and latching data
+	for( i=0; i<=len; i++ ) {
+		M2_HI();
+		//testing shows that having this if statement doesn't affect overall dumping speed
+		if ( poll == FALSE ) {
+			NOP();	//couple more NOP's waiting for data
+			NOP();	//one prob good enough considering the if/else
+		} else {
+			usbPoll();	//Call usbdrv.h usb polling while waiting for data
+		}
+
+		//add some delay for 4-8MByte 3v flash
+		NOP();
+		NOP();
+		NOP();
+		NOP();
+		NOP();
+		NOP();
+		NOP();
+		NOP();
+
+		//latch data
+		DATA_RD(data[i]);
+		M2_LO();
 		//set lower address bits
 		//ADDRL(++first);	THIS broke things, on stm adapter because macro expands it twice!
 		first++;
@@ -840,6 +981,64 @@ uint8_t nes_ppu_page_rd_poll( uint8_t *data, uint8_t addrH, uint8_t first, uint8
 
 	//return bus to default
 	CSRD_HI();
+	
+	//return index of last byte read
+	return i;
+}
+
+
+uint8_t nes_ppu_page_rd_toggle( uint8_t *data, uint8_t addrH, uint8_t first, uint8_t len, uint8_t poll )
+{
+	uint8_t i;
+
+	if (addrH < 0x20) { //below $2000 A13 clear, /A13 set
+		//ADDRH(addrH | PPU_A13N_BYTE); 
+		//Don't do weird stuff like above!  logic inside macro expansions can have weird effects!!
+		addrH |= PPU_A13N_BYTE;
+		ADDRH(addrH);
+	} else { //above PPU $1FFF, A13 set, /A13 clear 
+		ADDRH(addrH);
+	}
+
+	//set lower address bits
+	ADDRL(first);		//doing this prior to entry and right after latching
+
+	//dual port assumes address is valid shortly after /RD & /WR are both high
+	CSRD_LO();
+	CSRD_HI();
+	NOP();
+	NOP();
+	NOP();
+	//now it'll go fetch the current address
+
+	for( i=0; i<=len; i++ ) {
+		//set CHR /RD and /WR
+		CSRD_LO();
+		//couple more NOP's waiting for data
+		NOP();
+		NOP();
+		
+		if ( poll == FALSE ) {
+			NOP();	//one prob good enough considering the if/else
+			NOP();
+		} else {
+			usbPoll();
+		}
+
+		//latch data
+		DATA_RD(data[i]);
+
+		//set lower address bits
+		first ++;
+		ADDRL(first);
+
+		//return bus to default
+		//also triggers fetch of the current address
+		CSRD_HI();
+		NOP();
+		NOP();
+	}
+
 	
 	//return index of last byte read
 	return i;
@@ -1203,7 +1402,7 @@ uint8_t mmc3_prgrom_flash_wr( uint16_t addr, uint8_t data )
 	nes_cpu_wr(addr, data);
 
 	//reset $8000 bank select register to a CHR reg
-	nes_cpu_wr(0x8000, 0x00);
+	nes_cpu_wr(0x8000, 0x02); //0x02 also maintains flash mode for custom
 
 	do {
 		rv = nes_cpu_rd(addr);
@@ -1213,6 +1412,21 @@ uint8_t mmc3_prgrom_flash_wr( uint16_t addr, uint8_t data )
 	return rv;
 }
 
+/* Desc:NES MMC3 PRG-ROM FLASH Write
+ * Pre: nes_init() setup of io pins
+ * 	MMC3 must be properly inialized for flashing
+ * 	addr must be between $8000-9FFF as prescribed by init
+ * Post:Byte written and ready for another write
+ * Rtn:	None
+ */
+uint8_t mmc3s_prgrom_flash_wr( uint16_t addr, uint8_t data )
+{
+
+	uint8_t rv;
+
+
+	return rv;
+}
 
 /* Desc:NES MMC3 CHR-ROM FLASH Write
  * Pre: nes_init() setup of io pins
@@ -1273,6 +1487,40 @@ void mmc4_prgrom_sop_flash_wr( uint16_t addr, uint8_t data )
 
 	return;
 }
+
+/* Desc:NES MMC4 PRG-ROM FLASH Write for standard PLCC SST flash
+ * Pre: nes_init() setup of io pins
+ * 	MMC4 must be properly inialized for flashing
+ * 	addr must be between $8000-BFFF as prescribed by init
+ * 	desired bank must already be selected
+ * 	cur_bank must be set to desired bank for recovery
+ * Post:Byte written and ready for another write
+ * Rtn:	None
+ */
+uint8_t mmc4_prgrom_flash_wr( uint16_t addr, uint8_t data )
+{
+
+	uint8_t rv;
+
+	//unlock and write data SOP-44 flash
+	nes_cpu_wr(0xD555, 0xAA);
+	nes_cpu_wr(0xEAAA, 0x55);
+	nes_cpu_wr(0xD555, 0xA0);
+	nes_cpu_wr(addr, data);		//corrupts bank register if addr $A000-AFFF
+
+	//recover bank register as data write would have corrupted
+	nes_cpu_wr(0xA000, cur_bank);
+
+	do {
+		rv = nes_cpu_rd(addr);
+		usbPoll();	//orignal kazzo needs this frequently to slurp up incoming data
+	} while (rv != nes_cpu_rd(addr));
+	//TODO handle timeout
+
+	return rv;
+}
+
+
 
 
 /* Desc:NES MMC4 CHR-ROM FLASH Write
@@ -1418,6 +1666,10 @@ uint8_t gtrom_prgrom_flash_wr( uint16_t addr, uint8_t data )
 {
 
 	uint8_t rv;
+	//uint8_t rv1;
+
+	//select bank, don't think needed, but having problems...
+	nes_cpu_wr(0x5000, cur_bank);
 
 	//unlock the flash
 	nes_cpu_wr(0xD555, 0xAA);
@@ -1427,6 +1679,46 @@ uint8_t gtrom_prgrom_flash_wr( uint16_t addr, uint8_t data )
 	//write the data
 	nes_cpu_wr(addr, data);
 
+//	nes_cpu_wr(0x5000, cur_bank);
+
+	/*
+	do {
+		rv = nes_cpu_rd(0x8000);
+		rv1 = nes_cpu_rd(0x8000);
+		usbPoll();	//orignal kazzo needs this frequently to slurp up incoming data
+	//} while (rv != nes_cpu_rd(8000));
+	} while (rv != rv1);
+	*/
+//	while( data != nes_cpu_rd(addr)) { }
+	
+
+	//requires final data to be present
+	rv = nes_cpu_rd(addr);
+	while (rv != data) {
+		rv = nes_cpu_rd(addr);
+	}
+
+	return rv;
+}
+
+/* Desc:NES ACTION53 TSSOP PRG-ROM FLASH Write
+ * Pre: nes_init() setup of io pins
+ * 	Flash must already be in unlock bypass mode
+ * Post:Byte written and ready for another write
+ * Rtn:	None
+ */
+uint8_t a53_tssop_prgrom_flash_wr( uint16_t addr, uint8_t data )
+{
+
+	uint8_t rv;
+
+	//chr reg select act like CNROM & enable flash writes
+	nes_cpu_wr(0x5000, 0x54); 
+
+	//unlock and write data
+	nes_m2_high_wr(addr, 0xA0);
+	nes_m2_high_wr(addr, data);
+
 	do {
 		rv = nes_cpu_rd(addr);
 		usbPoll();	//orignal kazzo needs this frequently to slurp up incoming data
@@ -1435,5 +1727,26 @@ uint8_t gtrom_prgrom_flash_wr( uint16_t addr, uint8_t data )
 	return rv;
 }
 
+/* Desc:NES TSSOP PRG-ROM FLASH Write
+ * Pre: nes_init() setup of io pins
+ * 	Flash must already be in unlock bypass mode
+ * Rtn:	None
+ */
+uint8_t tssop_prgrom_flash_wr( uint16_t addr, uint8_t data )
+{
+
+	uint8_t rv;
+
+	//unlock and write data
+	nes_m2_high_wr(addr, 0xA0);
+	nes_m2_high_wr(addr, data);
+
+	do {
+		rv = nes_cpu_rd(addr);
+		usbPoll();	//orignal kazzo needs this frequently to slurp up incoming data
+	} while (rv != nes_cpu_rd(addr));
+
+	return rv;
+}
 
 #endif //NES_CONN

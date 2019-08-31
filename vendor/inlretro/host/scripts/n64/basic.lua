@@ -7,6 +7,7 @@ local dict = require "scripts.app.dict"
 local dump = require "scripts.app.dump"
 local flash = require "scripts.app.flash"
 local help = require "scripts.app.help"
+local time = require "scripts.app.time"
 
 -- file constants
 
@@ -23,16 +24,24 @@ local function dump_rom( file, rom_size_KB, debug )
 
 	local num_reads = rom_size_KB / KB_per_bank
 	local read_count = 0
+--	local read_count = 512 --second half of RE2
 
 
---	dict.n64("N64_SET_BANK", bank_base + 0)
---	dict.n64("N64_LATCH_ADDR", 0x0000)
---	print("read: ", help.hex(dict.n64("N64_RD")))
---	print("read: ", help.hex(dict.n64("N64_RD")))
---	dict.n64("N64_SET_BANK", bank_base + 0)
---	dict.n64("N64_LATCH_ADDR", 0x0000)
---	dump.dumptofile( file, KB_per_bank, addr_base, "N64_ROM_PAGE", false )
---	dict.n64("N64_RELEASE_BUS")
+	--[[
+	dict.n64("N64_SET_BANK", bank_base + 0)
+	dict.n64("N64_LATCH_ADDR", 0x0000)
+	print("read: ", help.hex(dict.n64("N64_RD")))
+	print("read: ", help.hex(dict.n64("N64_RD")))
+	dict.n64("N64_SET_BANK", bank_base + 0)
+	dict.n64("N64_LATCH_ADDR", 0x0000)
+	dump.dumptofile( file, KB_per_bank, addr_base, "N64_ROM_PAGE", false )
+
+	dict.n64("N64_LATCH_ADDR", 0x0000)
+	print("read: ", help.hex(dict.n64("N64_RD")))
+	print("read: ", help.hex(dict.n64("N64_RD")))
+	dict.n64("N64_LATCH_ADDR", 0x0000)
+	dump.dumptofile( file, KB_per_bank, addr_base, "N64_ROM_PAGE", false )
+	--]]
 
 	while ( read_count < num_reads ) do
 
@@ -85,6 +94,37 @@ local function process(process_opts, console_opts)
 --test cart by reading manf/prod ID
 	if test then
 
+		--read rom header
+		print("\nN64 attempt to read in rom header:")
+
+		local bank_base = 0x1000  --N64 roms start at address 0x1000_0000
+		dict.n64("N64_SET_BANK", bank_base + 0)
+
+		local i = 0, rv
+
+		local header = {}
+		local header_start = 0x0020
+		dict.n64("N64_LATCH_ADDR", header_start)
+
+		local header_len = 32 
+		while i < header_len do
+
+			rv = dict.n64("N64_RD")
+			header[i+1] = rv>>8
+			i = i+1
+			header[i+1] = (rv & 0x00FF)
+			i = i+1
+		end
+	
+		i = 1
+		while header[i] do
+			io.write(string.char(header[i]))
+			--io.write("B-",i,"=",header[i], " ")
+			i = i+1
+		end
+		print("\n")
+
+
 --		print("Testing SNES board");
 --
 --		--SNES detect HiROM or LoROM & RAM
@@ -120,11 +160,14 @@ local function process(process_opts, console_opts)
 --dump the cart to dumpfile
 	if read then
 		print("\nDumping N64 ROM...")
+		print("Ouput format is Big Endian (.z64 format)")
 
 		file = assert(io.open(dumpfile, "wb"))
 
 		--dump cart into file
+		time.start()
 		dump_rom(file, rom_size, false)
+		time.report(rom_size)
 
 		--close file
 		assert(file:close())

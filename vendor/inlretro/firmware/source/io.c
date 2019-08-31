@@ -56,8 +56,10 @@ uint8_t io_call( uint8_t opcode, uint8_t miscdata, uint16_t operand, uint8_t *rd
 		#ifdef N64_CONN
 		case N64_INIT:	n64_init();			break;
 		#endif
+		#ifdef STM_CORE
 		case SWIM_INIT:	
 			return swim_init(operand);		break;
+		#endif
 		case JTAG_INIT:	
 			return jtag_init(operand);		break;
 
@@ -177,14 +179,14 @@ void nes_init()
 
 	//enable control outputs and disable memories
 	//PRG-ROM
-	ROMSEL_OP();
 	ROMSEL_HI();
+	ROMSEL_OP();
 	//WRAM (and state of m2 during first half of CPU cycle)
-	M2_OP();
 	M2_LO();
+	M2_OP();
 	//CPU RD
-	PRGRW_OP();
 	PRGRW_HI();
+	PRGRW_OP();
 
 	//other control pins are inputs, leave as IP pullup from reset
 
@@ -192,10 +194,10 @@ void nes_init()
 	//prior to setting PPU A13 & /A13 which are /CE pins
 	//doing this helps ensure data bus is clear before 
 	//using it for AHL clocking
-	CSRD_OP();
 	CSRD_HI();
-	CSWR_OP();
+	CSRD_OP();
 	CSWR_HI();
+	CSWR_OP();
 
 	//memories are now disabled Data bus should be clear
 	DATA_ENABLE();
@@ -466,14 +468,17 @@ void sega_init()
 
 	//memories are now disabled Data bus should be clear
 	
-	// SEGA D0-7
-	DATA_ENABLE();
-	DATA_IP_PU();
-
-	//SEGA D8-15
-	HADDR_ENABLE();
-	HADDR_IP();
-	HADDR_PU();
+//	// SEGA D0-7
+//	DATA_ENABLE();
+//	DATA_IP_PU();
+//
+//	//SEGA D8-15
+//	HADDR_ENABLE();
+//	HADDR_IP();
+//	HADDR_PU();
+	DATA16_ENABLE();
+//	DATA16_IP();
+//	DATA16_PU();
 
 }
 #endif
@@ -547,6 +552,7 @@ void n64_init()
 //that swim lane will be used for all subsequent communications.
 //TODO setup to control SWIM pin as (psuedo) open drain.
 //if swim lane is unknown or other problem return error, else return SUCCESS
+#ifdef STM_CORE
 uint8_t swim_init( uint8_t swim_lane ) 
 {
 	switch (swim_lane) {
@@ -587,6 +593,7 @@ uint8_t swim_init( uint8_t swim_lane )
 	}
 	return SUCCESS;
 }
+#endif
 
 //Initialization of JTAG communications
 //the JTAG pin depends on INL board design.

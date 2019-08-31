@@ -25,6 +25,18 @@ uint8_t dump_buff( buffer *buff ) {
 							buff->last_idx, ~FALSE );
 			break;
 
+		case NESCPU_4KB_TOGGLE:
+			//mapper lower nibble specifies NES CPU A12-15
+			if (buff->mapper > 0x0F) { 
+				//mapper can only be 4bits (0-15)
+				return ERR_BUFF_PART_NUM_RANGE;
+			}
+			addrH |= (buff->mapper << 4); // 8 << 12 = shift by 4
+			buff->cur_byte = nes_cpu_page_rd_toggle( buff->data, addrH, buff->id, 
+							//id contains MSb of page when <256B buffer
+							buff->last_idx, ~FALSE );
+			break;
+
 		case NESPPU_1KB:
 			//mapper bits 2-5 specifies NES PPU A10-13
 			if (buff->mapper & 0xC3) { //make sure bits 7, 6, 1, & 0 aren't set
@@ -33,6 +45,17 @@ uint8_t dump_buff( buffer *buff ) {
 			}
 			addrH |= buff->mapper; // PPU A10-13 get set based on mapper
 			buff->cur_byte = nes_ppu_page_rd_poll( buff->data, addrH, buff->id,
+								buff->last_idx, ~FALSE );
+			break;
+
+		case NESPPU_1KB_TOGGLE:
+			//mapper bits 2-5 specifies NES PPU A10-13
+			if (buff->mapper & 0xC3) { //make sure bits 7, 6, 1, & 0 aren't set
+				//mapper can only have bits 2-5 set
+				return ERR_BUFF_PART_NUM_RANGE;
+			}
+			addrH |= buff->mapper; // PPU A10-13 get set based on mapper
+			buff->cur_byte = nes_ppu_page_rd_toggle( buff->data, addrH, buff->id,
 								buff->last_idx, ~FALSE );
 			break;
 
@@ -149,6 +172,7 @@ uint8_t dump_buff( buffer *buff ) {
 				nes_cpu_wr(0x8000, bank);	  //outer bank
 				nes_cpu_wr(0x5000, 0x00); //chr reg select act like CNROM
 			}
+			/* migrated to script controlled
 			if (buff->mapper == EZNSF) {
 				//addrH &= 0b1000 1111 A14-12 must always be low
 				addrH &= 0x8F;
@@ -160,6 +184,7 @@ uint8_t dump_buff( buffer *buff ) {
 			buff->cur_byte = nes_cpu_page_rd_poll( buff->data, addrH, buff->id, 
 								//id contains MSb of page when <256B buffer
 								buff->last_idx, ~FALSE );
+			*/
 			break;
 
 		case CHRROM:		//$0000

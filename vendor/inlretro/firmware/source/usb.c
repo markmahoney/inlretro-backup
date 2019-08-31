@@ -150,9 +150,11 @@ USBSETUP uint16_t usbFunctionSetup(uint8_t data[8]) {
 			break;
 		#endif
 
+		#ifdef STM_CORE
 		case DICT_SWIM:
 			rv[RETURN_ERR_IDX] = swim_call( spacket->opcode, spacket->miscdata, spacket->operand, &rv[RETURN_LEN_IDX] );	
 			break;
+		#endif
 
 		case DICT_JTAG:
 			rv[RETURN_ERR_IDX] = jtag_call( spacket->opcode, spacket->miscdata, spacket->operand, &rv[RETURN_LEN_IDX] );	

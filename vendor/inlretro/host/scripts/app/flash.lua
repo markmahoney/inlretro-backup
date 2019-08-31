@@ -54,7 +54,9 @@ local function write_file( file, sizeKB, map, mem, debug )
 
 	local i = 1
 	local nak = 0
+	--print("file is:", file)
 	for bytes in file:lines(buff_size) do
+		--if debug then print("payload out") end
 		dict.buffer_payload_out( buff_size, bytes )
 
 		cur_buff_status = dict.buffer("GET_CUR_BUFF_STATUS")

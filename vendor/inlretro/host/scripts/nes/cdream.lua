@@ -7,17 +7,37 @@ local dict = require "scripts.app.dict"
 local nes = require "scripts.app.nes"
 local dump = require "scripts.app.dump"
 local flash = require "scripts.app.flash"
+local help = require "scripts.app.help"
+local time = require "scripts.app.time"
+local files = require "scripts.app.files"
+local buffers = require "scripts.app.buffers"
 
 -- file constants & variables
 local mapname = "CDREAM"
-local banktable_base = 0xCC43 --MTales, bank0 only though..
-local rom_FF_addr = 0xCD42 --this is only present in first bank, so go there first
-local rom_00_addr = 0x800C
+--local banktable_base = 0xCC43 --MTales, bank0 only though..
+--local banktable_base = 0xCC29 --MTales, bank0 only though..
+----local rom_FF_addr = 0xCD42 --Alfonzo present in each bank  write any value here will work if zeros always win
+--local rom_FF_addr = 0xCD28 --Alfonzo present in each bank  write any value here will work if zeros always win
+--local rom_00_addr = 0x800C --Alfonzo present in each bank  write 0 here to ensure bank 0
+--local num_prg_banks = 16       --bank table size and organization depends on number of PRG banks
+
+local banktable_base = 0xFF9E --Alfonzo all banks
+local num_prg_banks = 4       --bank table size and organization depends on number of PRG banks
+local rom_FF_addr = 0x8008 --Alfonzo present in each bank  write any value here will work if zeros always win
+local rom_00_addr = 0xFF9E --Alfonzo present in each bank  write 0 here to ensure bank 0
 --perhaps can use this to always get back to first bank which has a complete bank table
 --MTales does have a zero in each and every bank at $800C which could be used to get back to bank0
 --but for now let's rely on 0 always overriding 1 to allow us to always be able to get to bank0
 
 -- local functions
+
+local function create_header( file, prgKB, chrKB )
+
+	local mirroring = nes.detect_mapper_mirroring()
+
+	--write_header( file, prgKB, chrKB, mapper, mirroring )
+	nes.write_header( file, prgKB, chrKB, op_buffer[mapname], mirroring)
+end
 
 --read PRG-ROM flash ID
 local function prgrom_manf_id( debug )
@@ -129,26 +149,26 @@ local function wr_chr_flash_byte(bank, addr, value, debug)
 	--send unlock command
 	--dict.nes("NES_CPU_WR", rom_00_addr, 0x00)	--assumes mcu wins bus conflicts if rom is high
 	--dict.nes("NES_CPU_WR", rom_FF_addr, 0x20)	--assumes mcu wins bus conflicts if rom is high
-	dict.nes("NES_CPU_WR", banktable_base+0x20, 0x20)
-	--dict.nes("NES_CPU_WR", banktable_base+2, 0x02)
+	--dict.nes("NES_CPU_WR", banktable_base+0x20, 0x20) --alfonzo doesn't have this large of bank table
+	dict.nes("NES_CPU_WR", banktable_base+ num_prg_banks*2 , 0x20)
 	dict.nes("NES_PPU_WR", 0x1555, 0xAA)
 
 	--dict.nes("NES_CPU_WR", rom_00_addr, 0x00)	--assumes mcu wins bus conflicts if rom is high
 	--dict.nes("NES_CPU_WR", rom_FF_addr, 0x10)	--assumes mcu wins bus conflicts if rom is high
-	dict.nes("NES_CPU_WR", banktable_base+0x10, 0x10)
-	--dict.nes("NES_CPU_WR", banktable_base+1, 0x01)
+	--dict.nes("NES_CPU_WR", banktable_base+0x10, 0x10)
+	dict.nes("NES_CPU_WR", banktable_base+ num_prg_banks*1 , 0x10)
 	dict.nes("NES_PPU_WR", 0x0AAA, 0x55)
 
 	--dict.nes("NES_CPU_WR", rom_00_addr, 0x00)	--assumes mcu wins bus conflicts if rom is high
 	--dict.nes("NES_CPU_WR", rom_FF_addr, 0x20)	--assumes mcu wins bus conflicts if rom is high
-	dict.nes("NES_CPU_WR", banktable_base+0x20, 0x20)
-	--dict.nes("NES_CPU_WR", banktable_base+2, 0x02)
+	--dict.nes("NES_CPU_WR", banktable_base+0x20, 0x20)
+	dict.nes("NES_CPU_WR", banktable_base+ num_prg_banks*2 , 0x20)
 	dict.nes("NES_PPU_WR", 0x1555, 0xA0)
 
 	--select desired bank
 	--dict.nes("NES_CPU_WR", rom_00_addr, 0x00)	--assumes mcu wins bus conflicts if rom is high
 	--dict.nes("NES_CPU_WR", rom_FF_addr, bank<<4)	--assumes mcu wins bus conflicts if rom is high
-	dict.nes("NES_CPU_WR", banktable_base+(bank<<4), (bank<<4))
+	dict.nes("NES_CPU_WR", banktable_base+(bank*num_prg_banks), (bank<<4))
 	--dict.nes("NES_CPU_WR", banktable_base+bank, bank)
 	--write the byte
 	dict.nes("NES_PPU_WR", addr, value)
@@ -157,9 +177,15 @@ local function wr_chr_flash_byte(bank, addr, value, debug)
 
 	local i = 0
 
-	while ( rv ~= value ) do
-		rv = dict.nes("NES_PPU_RD", addr)
+	while ( rv ~= dict.nes("NES_PPU_RD", addr) ) do
 		i = i + 1
+
+		print(help.hex(rv))
+
+		if i > 100 then
+			print("naks > 100, write failed, addr:", help.hex(addr), "data:", help.hex(value),"readback:", help.hex(rv) )
+			return
+		end
 	end
 	if debug then print(i, "naks, done writing byte.") end
 
@@ -251,8 +277,8 @@ local function dump_chrrom( file, rom_size_KB, debug )
 
 		--select the proper CHR-ROM bank
 		--dump/read size is equal to bank size, so read_count is equal to bank number
-		--dict.nes("NES_CPU_WR", rom_FF_addr, read_count)
-		dict.nes("NES_CPU_WR", banktable_base+(read_count<<4), (read_count<<4))
+		dict.nes("NES_CPU_WR", rom_FF_addr, read_count<<4)
+		--dict.nes("NES_CPU_WR", banktable_base+(read_count<<4), (read_count<<4))
 
 		--dump the bank
 		dump.dumptofile( file, KB_per_read, addr_base, "NESPPU_1KB", false )
@@ -345,41 +371,28 @@ local function flash_chrrom(file, rom_size_KB, debug)
 	--init_mapper()
 
 	--test some bytes
-	--wr_chr_flash_byte(0x00, 0x0000, 0x03, true)
-	--wr_chr_flash_byte(0x00, 0x1FFF, 0x0C, true)
-	--wr_chr_flash_byte(0x01, 0x0000, 0x13, true)
-	--wr_chr_flash_byte(0x01, 0x1FFF, 0x1C, true)
-	--wr_chr_flash_byte(0x02, 0x0000, 0x23, true)
-	--wr_chr_flash_byte(0x02, 0x1FFF, 0x2C, true)
-	--wr_chr_flash_byte(0x03, 0x0000, 0x33, true)
-	--wr_chr_flash_byte(0x03, 0x1FFF, 0x3C, true)
-	--wr_chr_flash_byte(0x04, 0x0000, 0x43, true)
-	--wr_chr_flash_byte(0x04, 0x1FFF, 0x4C, true)
-	--wr_chr_flash_byte(0x05, 0x0000, 0x53, true)
-	--wr_chr_flash_byte(0x05, 0x1FFF, 0x5C, true)
-	--wr_chr_flash_byte(0x06, 0x0000, 0x63, true)
-	--wr_chr_flash_byte(0x06, 0x1FFF, 0x6C, true)
-	--wr_chr_flash_byte(0x07, 0x0000, 0x73, true)
-	--wr_chr_flash_byte(0x07, 0x1FFF, 0x7C, true)
-	--wr_chr_flash_byte(0x08, 0x0000, 0x83, true)
-	--wr_chr_flash_byte(0x08, 0x1FFF, 0x8C, true)
-	--wr_chr_flash_byte(0x09, 0x0000, 0x93, true)
-	--wr_chr_flash_byte(0x09, 0x1FFF, 0x9C, true)
-	--wr_chr_flash_byte(0x0A, 0x0000, 0xA3, true)
-	--wr_chr_flash_byte(0x0A, 0x1FFF, 0xAC, true)
-	--wr_chr_flash_byte(0x0B, 0x0000, 0xB3, true)
-	--wr_chr_flash_byte(0x0B, 0x1FFF, 0xBC, true)
-	--wr_chr_flash_byte(0x0C, 0x0000, 0xC3, true)
-	--wr_chr_flash_byte(0x0C, 0x1FFF, 0xCC, true)
-	--wr_chr_flash_byte(0x0D, 0x0000, 0xD3, true)
-	--wr_chr_flash_byte(0x0D, 0x1FFF, 0xDC, true)
-	--wr_chr_flash_byte(0x0E, 0x0000, 0xE3, true)
-	--wr_chr_flash_byte(0x0E, 0x1FFF, 0xEC, true)
-	--wr_chr_flash_byte(0x0F, 0x0000, 0xF3, true)
-	--wr_chr_flash_byte(0x0F, 0x1FFF, 0xFC, true)
+	--print("test writes")
+	--wr_chr_flash_byte(0x00, 0x0000, 0x03, true) wr_chr_flash_byte(0x00, 0x1FFF, 0x0C, true)
+	--wr_chr_flash_byte(0x01, 0x0000, 0x13, true) wr_chr_flash_byte(0x01, 0x1FFF, 0x1C, true)
+	--wr_chr_flash_byte(0x02, 0x0000, 0x23, true) wr_chr_flash_byte(0x02, 0x1FFF, 0x2C, true)
+	--wr_chr_flash_byte(0x03, 0x0000, 0x33, true) wr_chr_flash_byte(0x03, 0x1FFF, 0x3C, true)
+	--wr_chr_flash_byte(0x04, 0x0000, 0x43, true) wr_chr_flash_byte(0x04, 0x1FFF, 0x4C, true)
+	--wr_chr_flash_byte(0x05, 0x0000, 0x53, true) wr_chr_flash_byte(0x05, 0x1FFF, 0x5C, true)
+	--wr_chr_flash_byte(0x06, 0x0000, 0x63, true) wr_chr_flash_byte(0x06, 0x1FFF, 0x6C, true)
+	--wr_chr_flash_byte(0x07, 0x0000, 0x73, true) wr_chr_flash_byte(0x07, 0x1FFF, 0x7C, true)
+	--wr_chr_flash_byte(0x08, 0x0000, 0x83, true) wr_chr_flash_byte(0x08, 0x1FFF, 0x8C, true)
+	--wr_chr_flash_byte(0x09, 0x0000, 0x93, true) wr_chr_flash_byte(0x09, 0x1FFF, 0x9C, true)
+	--wr_chr_flash_byte(0x0A, 0x0000, 0xA3, true) wr_chr_flash_byte(0x0A, 0x1FFF, 0xAC, true)
+	--wr_chr_flash_byte(0x0B, 0x0000, 0xB3, true) wr_chr_flash_byte(0x0B, 0x1FFF, 0xBC, true)
+	--wr_chr_flash_byte(0x0C, 0x0000, 0xC3, true) wr_chr_flash_byte(0x0C, 0x1FFF, 0xCC, true)
+	--wr_chr_flash_byte(0x0D, 0x0000, 0xD3, true) wr_chr_flash_byte(0x0D, 0x1FFF, 0xDC, true)
+	--wr_chr_flash_byte(0x0E, 0x0000, 0xE3, true) wr_chr_flash_byte(0x0E, 0x1FFF, 0xEC, true)
+	--wr_chr_flash_byte(0x0F, 0x0000, 0xF3, true) wr_chr_flash_byte(0x0F, 0x1FFF, 0xFC, true)
 	
 	print("\nProgramming CHR-ROM flash")
       	--most of this is overkill for NROM, but it's how we want to handle things for bigger mappers
+
+	--if 1 then return end
 
 	local base_addr = 0x0000
 	local bank_size = 8*1024 
@@ -391,11 +404,17 @@ local function flash_chrrom(file, rom_size_KB, debug)
 	local byte_str, data, readdata
 
 	--start with the first bank selected so the bank table is visible
+	--only really need banktable present in a single PRG bank
+	--having it in the first bank is easiest to access with assumption that 0 beats 1 on bus conflicts
 	dict.nes("NES_CPU_WR", rom_00_addr, 0x00)	--assumes mcu wins bus conflicts if rom is high
 
 	--set the bank table address
 	dict.nes("SET_BANK_TABLE", banktable_base) 
 	if debug then print("get banktable:", string.format("%X", dict.nes("GET_BANK_TABLE"))) end
+
+	--tell firmware number of PRG-ROM banks so it knows the structure of the banktable
+	dict.nes("SET_NUM_PRG_BANKS", num_prg_banks)
+	if debug then print("get num prg banks:", dict.nes("GET_NUM_PRG_BANKS")) end
 
 	while cur_bank < total_banks do
 
@@ -424,7 +443,7 @@ local function flash_chrrom(file, rom_size_KB, debug)
 			--SLOWEST OPTION: no firmware MMC3 specific functions 100% host flash algo:
 			--wr_chr_flash_byte(cur_bank, base_addr+byte_num, data, false)  --0.7KBps
 			--EASIEST FIRMWARE SPEEDUP: 5x faster, create mapper write byte function:
-			dict.nes("CDREAM_CHR_FLASH_WR", base_addr+byte_num, data) 
+			--dict.nes("CDREAM_CHR_FLASH_WR", base_addr+byte_num, data) 
 			--FASTEST have the firmware handle flashing a bank's worth of data
 			--control the init and banking from the host side
 			
@@ -482,12 +501,31 @@ local function process(process_opts, console_opts)
 		prgrom_manf_id(true)
 
 		chrrom_manf_id(true)
+
+		--verify mirroring if desired
+		--if ( nes.detect_mapper_mirroring() == "VERT" ) then
+		--	if debug then print("pass VERT mirror test") end
+		--else
+		--	print("\n\n\nFAIL MIRRORING JUMPER IS NOT VERTICAL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n\n")
+		--	--don't continue
+		--	return false
+		--end
+		--if ( nes.detect_mapper_mirroring() == "HORZ" ) then
+		--	if debug then print("pass VERT mirror test") end
+		--else
+		--	print("\n\n\nFAIL MIRRORING JUMPER IS NOT HORIZONTAL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n\n")
+		--	--don't continue
+		--	return false
+		--end
 	end
 
 --dump the cart to dumpfile
 	if read then
 		print("\nDumping PRG & CHR ROMs...")
 		file = assert(io.open(dumpfile, "wb"))
+
+		--create header: pass open & empty file & rom sizes
+		create_header(file, prg_size, chr_size)
 
 		--TODO find bank table to avoid bus conflicts!
 		--dump cart into file
@@ -554,7 +592,8 @@ local function process(process_opts, console_opts)
 		--find bank table in the rom
 		--write bank table to all banks of cartridge
 		--Mojontales bank table is at $CC43 so hard code that for now
-		wr_bank_table(banktable_base, 256)
+		--wr_bank_table(banktable_base, 256)
+		wr_bank_table(banktable_base, 4)
 
 		--flash cart
 		flash_prgrom(file, prg_size, false)
@@ -567,19 +606,24 @@ local function process(process_opts, console_opts)
 
 --verify flashfile is on the cart
 	if verify then
-		--for now let's just dump the file and verify manually
-		print("\nPost dumping PRG & CHR ROMs...")
 
 		file = assert(io.open(verifyfile, "wb"))
 
 		--dump cart into file
+		time.start()
 		dump_prgrom(file, prg_size, false)
 		dump_chrrom(file, chr_size, false)
+		time.report(prg_size+chr_size)
 
 		--close file
 		assert(file:close())
 
-		print("DONE post dumping PRG & CHR ROMs")
+		--compare the flash file vs post dump file
+		if (files.compare( verifyfile, flashfile, true ) ) then
+			print("\nSUCCESS! Flash verified")
+		else
+			print("\n\n\n FAILURE! Flash verification did not match")
+		end
 	end
 
 	dict.io("IO_RESET")

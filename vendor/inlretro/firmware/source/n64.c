@@ -3,7 +3,7 @@
 //only need this file if connector is present on the device
 #ifdef N64_CONN 
 
-uint16_t n64_bank;
+uint16_t n64_bank;	//A16-31 the upper 16bits that gets latched with ALE_H
 
 //=================================================================================================
 //
@@ -114,6 +114,19 @@ void n64_latch_addr( uint16_t addr_lo )
 	//leave AD0-15 as input for subsequent access
 	ADDR_IP();
 
+	//give the address decoder some time before permitting data to be read out
+	//The N64 system supposedly waits ~1.040usec
+	//STM32 @ 48Mhz = 20.8nsec cycle time -> would be ~50cycles
+	//But that seems crazy long... and not necessary
+	NOP(); NOP(); NOP(); NOP();
+	NOP(); NOP(); NOP(); NOP();
+//	NOP(); NOP(); NOP(); NOP();
+//	NOP(); NOP(); NOP(); NOP();
+//	NOP(); NOP(); NOP(); NOP();
+//	NOP(); NOP(); NOP(); NOP();
+//	NOP(); NOP(); NOP(); NOP();
+//	NOP(); NOP(); NOP(); NOP();
+
 	return;
 }
 
@@ -135,6 +148,13 @@ uint16_t n64_rd()
 	
 	NOP();
 	NOP();
+	//added more delay helps RE2 second read and some other bad reads
+	NOP();
+	NOP();
+
+	//N64 console appears to have a /RD low time of 300nsec
+	//But that seems crazy long... and not necessary
+
 
 	read = ADDR_VAL;
 	CSRD_HI();
@@ -149,9 +169,23 @@ uint8_t n64_page_rd( uint8_t *data, uint8_t addrH, uint8_t first, uint8_t len )
 	uint16_t read;
 	uint8_t i;
 
-	n64_latch_addr( addrH<<8 | first );
+	//need to set the addr every 512Bytes, else will wrap around
+	//effectively every 0x0200 bytes, the address needs latched
+	//read0 addrH=0 first=0 (128B read)
+	//read0 addrH=0 first=128 (128B read)
+	//read0 addrH=1 first=0 (128B read)  <-- odd addrH values don't need address latched
+	//read0 addrH=1 first=128 (128B read)
+	//read0 addrH=2 first=0 (128B read) <== latch addrH again
+	if ((first == 0) && (addrH|0x01))
+		n64_latch_addr( addrH<<8 | first );
+		//only need to latch address on even buffers
+		//odd buffers are reading second half of 256Byte page, 
+		//so the previous latching should be valid
 
 	//now can call n64_rd to get 16bits of data
+	
+	//needed a delay between latching address, and reading data for the first time
+	//NOP(); NOP(); NOP(); NOP(); NOP(); NOP(); NOP(); NOP(); NOP(); // --> Moved to the n64_latch_addr function
 
 	for( i=0; i<=len; i++ ) {
 
@@ -160,14 +194,13 @@ uint8_t n64_page_rd( uint8_t *data, uint8_t addrH, uint8_t first, uint8_t len )
 		//read 16bits
 		read = n64_rd();
 
-		//store lower byte little endian
-		//now stores entire 16bit read at once
+		//store upper byte big endian
 		data[i] = read>>8;
 
-		//upper byte
+		//lower byte
 		i++;
 
-		//store upper byte
+		//store lower byte
 		data[i] = read;
 	}
 

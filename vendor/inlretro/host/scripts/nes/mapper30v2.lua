@@ -10,14 +10,23 @@ local flash = require "scripts.app.flash"
 local time = require "scripts.app.time"
 local files = require "scripts.app.files"
 local ciccom = require "scripts.app.ciccom"
-local time = require "scripts.app.time"
 local swim = require "scripts.app.swim"
 local mapper30_legacy = require "scripts.nes.mapper30"
+local buffers = require "scripts.app.buffers"
 
 -- file constants & variables
 local mapname = "MAP30"
 
 -- local functions
+
+local function create_header( file, prgKB, chrKB )
+
+	local mirroring = nes.detect_mapper_mirroring()
+
+	--write_header( file, prgKB, chrKB, mapper, mirroring )
+	nes.write_header( file, prgKB, 0, op_buffer[mapname], mirroring)
+end
+
 
 --read PRG-ROM flash ID
 local function prgrom_manf_id( debug )
@@ -426,9 +435,12 @@ local function process(process_opts, console_opts)
 	local file 
 	-- TODO: Cleanup needed here, support chrrom, make this look more like other mapper scripts.
 	local prg_size = console_opts["prg_rom_size_kb"]
+	local chr_size = console_opts["chr_rom_size_kb"]
+	local wram_size = console_opts["wram_size_kb"]
+	local mirror = console_opts["mirror"]
 
-	local filetype = "nes"
-	--local filetype = "bin"
+	--local filetype = "nes"
+	local filetype = "bin"
 
 	if is_old_firmware(true) then
 		--call legacy mapper30 script
@@ -458,13 +470,13 @@ local function process(process_opts, console_opts)
 		if not rv then return end 
 
 		--test CHR-RAM
-		--rv = exercise_chrram()
+		rv = exercise_chrram()
 		--exit script if test fails
-		--if not rv then return end 
+		if not rv then return end 
 
 		--test software mirroring switch
-		--rv = test_soft_mir_switch()
-		--if not rv then return end 
+		rv = test_soft_mir_switch()
+		if not rv then return end 
 
 
 	end
@@ -473,6 +485,9 @@ local function process(process_opts, console_opts)
 	if read then
 		print("\nDumping PRG-ROM...")
 		file = assert(io.open(dumpfile, "wb"))
+
+		--create header: pass open & empty file & rom sizes
+		create_header(file, prg_size, chr_size)
 
 		--dump cart into file
 		time.start()

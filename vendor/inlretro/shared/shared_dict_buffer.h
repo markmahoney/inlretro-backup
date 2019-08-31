@@ -127,6 +127,10 @@
 	#define GENESIS_ROM_PAGE1 0x29	//bank address A17-23 must have been latched already
 	#define N64_ROM_PAGE	0x30
 
+
+	#define NESPPU_1KB_TOGGLE 0x31	//similar to PPU page read but /RD signal toggles with each read
+	#define NESCPU_4KB_TOGGLE 0x32	//similar to CPU page read but M2 toggles with each read
+
 	//operand LSB
 	//SST 39SF0x0 manf/prod IDs
 	#define SST_MANF_ID	0xBF
@@ -152,8 +156,8 @@
 	//operand MSB mapper
 	#define NROM	0
 	#define MMC1	1
-	#define CNROM	2
-	#define UxROM	3
+	#define UxROM	2
+	#define CNROM	3
 	#define MMC3	4
 	#define MMC5	5
 	#define AxROM	7
@@ -174,6 +178,7 @@
 	#define HDIVER	78
 	#define GTROM	111
 	#define DxROM	205
+
 	#define MM2	253
 	#define DPROM	254	//just a random mapper number for whatever I need it for
 	//	UNKNOWN 255	don't assign to something meaningful

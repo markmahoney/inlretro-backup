@@ -75,17 +75,19 @@ function nes_exec(process_opts, console_opts)
         mapper30 = require "scripts.nes.mapper30",
         mapper30v2 = require "scripts.nes.mapper30v2",
         mmc1 = require "scripts.nes.mmc1",
+        mmc2 = require "scripts.nes.mmc2",
         mmc3 = require "scripts.nes.mmc3",
         mmc4 = require "scripts.nes.mmc4",
         mmc5 = require "scripts.nes.mmc5",
         nrom = require "scripts.nes.nrom",
         unrom = require "scripts.nes.unrom",
-        gtrom = require "scripts.nes.gtrom"
+        unrom_tsop = require "scripts.nes.unrom_tsop",
+        gtrom = require "scripts.nes.gtrom",
     }
 
-    dict.io("IO_RESET")	
-	dict.io("NES_INIT")	
-    nes.detect_mapper_mirroring(true)
+    --dict.io("IO_RESET")	
+--	dict.io("NES_INIT")	
+    --nes.detect_mapper_mirroring(true)
     
     m = mappers[console_opts["mapper"]]
     if m == nil then
@@ -116,6 +118,23 @@ function main()
 
     -- TODO: This should probably be one level up.
     -- TODO: Ram probably needs a verify file as well?
+
+    -- Print application version of the firmware for debug/support
+    -- Should work on all hardware versions 
+    local dict = require "scripts.app.dict"
+    local help = require "scripts.app.help"
+    local appver = help.hex(dict.bootload("GET_APP_VER", nil, nil, nil, true ))
+    print("firmware app ver request:", appver )
+    if appver < "3" then
+	    print("firmware is out of date, recommend updating")
+    end
+
+--    this method only works for STM32 based devices and reads version from flash address 0x0800-0800
+--    local fwupdate = require "scripts.app.fwupdate"
+--    local appver = fwupdate.get_fw_appver(true)
+--    if appver ~= "AV03" then
+--	    print("new firmware has been released, recommend upgrading")
+--    end
 
     -- Always test!
     local do_test = true
@@ -166,7 +185,9 @@ function main()
         nes = require "scripts.app.nes",
         gba = require "scripts.gba.basic",
         genesis = require "scripts.sega.genesis_v1",
+        --genesis = require "scripts.sega.genesis_v2",
         snes = require "scripts.snes.v2proto_hirom"
+        --snes = require "scripts.snes.v2manual_hirom"
     }
     local console_exec = consoles[console_name]
     local console_process_script = console_scripts[console_name]

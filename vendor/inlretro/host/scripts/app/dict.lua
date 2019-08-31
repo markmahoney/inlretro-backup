@@ -629,7 +629,7 @@ local function jtag( opcode, operand, misc, data )
 end
 
 -- external call for bootload dictionary
-local function bootload( opcode, operand, misc, data )
+local function bootload( opcode, operand, misc, data, permiterror )
 
 	assert ( op_bootload[opcode] , "\nERROR undefined opcode: " .. opcode .. " must be defined in shared_dict_bootload.h")
 
@@ -657,7 +657,14 @@ local function bootload( opcode, operand, misc, data )
 	end
 	--print("error:", error_code, "data_len:",  data_len)
 	
-	assert ( (error_code == err_codes["SUCCESS"]), "\n ERROR!!! problem with opcode: " .. opcode .. " operand: " .. operand .. " misc: " .. misc .. " device error code: " .. error_code)
+	if not permiterror then
+		assert ( (error_code == err_codes["SUCCESS"]), "\n ERROR!!! problem with opcode: " .. opcode .. " operand: " .. operand .. " misc: " .. misc .. " device error code: " .. error_code)
+	else
+		--called with permission of error
+		if error_code ~= err_codes["SUCCESS"] then
+			print("Permitted Error with opcode: " .. opcode .. " operand: " .. operand .. " misc: " .. misc .. " device error code: " .. error_code)
+		end
+	end
 
 	if data_len and data_len ~= (wLength - RETURN_LEN_IDX) then
 		print("WARNING!! Device's return data length:", data_len, "did not match expected:", wLength-RETURN_LEN_IDX)

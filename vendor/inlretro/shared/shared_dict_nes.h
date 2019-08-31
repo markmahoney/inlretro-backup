@@ -60,12 +60,13 @@
 #define MMC4_CHR_FLASH_WR		0x11	//needs cur_bank set prior to calling
 #define MAP30_PRG_FLASH_WR		0x12	//needs cur_bank set prior to calling
 #define GTROM_PRG_FLASH_WR		0x13	//desired bank must be selected
+#define MMC4_PRG_FLASH_WR		0x14	//mapper mod to XOR A14 with A13
 
 
 #define	SET_CUR_BANK			0x20
 #define	SET_BANK_TABLE			0x21
 
-#define NES_M2_LOW_WR			0x22	//like CPU WR, but M2 stays low
+#define M2_LOW_WR			0x22	//like CPU WR, but M2 stays low
 
 //write a page worth of random data to ppu
 //make sure the LSFR is initialized first in misc dict
@@ -74,6 +75,10 @@
 #define	PPU_PAGE_WR_LFSR		0x23	
 
 #define	SET_NUM_PRG_BANKS		0x24	//used for determining banktable structure for mapper 11 and such
+#define M2_HIGH_WR			0x25	//like CPU WR, but M2 stays high
+#define FLASH_3V_WR			0x25	//same as above but easier to remember when 
+						//being used to write to 3v tssop flash
+#define MMC3S_PRG_FLASH_WR		0x26	//TODO set return lengths for all these functions
 
 //=============================================================================================
 //	OPCODES WITH OPERAND AND RETURN VALUE plus SUCCESS/ERROR_CODE

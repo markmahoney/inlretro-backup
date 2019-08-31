@@ -7,11 +7,19 @@ local dict = require "scripts.app.dict"
 local nes = require "scripts.app.nes"
 local dump = require "scripts.app.dump"
 local flash = require "scripts.app.flash"
+local buffers = require "scripts.app.buffers"
 
 -- file constants
 local mapname = "MMC1"
 
 -- local functions
+
+local function create_header( file, prgKB, chrKB )
+
+	--write_header( file, prgKB, chrKB, mapper, mirroring )
+	nes.write_header( file, prgKB, chrKB, op_buffer[mapname], 0)
+end
+
 
 local function init_mapper( debug )
 
@@ -209,6 +217,7 @@ local function dump_wram( file, rom_size_KB, debug )
 	local num_reads = rom_size_KB / KB_per_read
 	local read_count = 0
 	local addr_base = 0x06	-- $6000
+	--TODO update to NES_CPU_PAGE instead of NES_CPU_4KB
 
 	while ( read_count < num_reads ) do
 
@@ -511,6 +520,9 @@ local function process(process_opts, console_opts)
 	local chr_size = console_opts["chr_rom_size_kb"]
 	local wram_size = console_opts["wram_size_kb"]
 
+	--local filetype = "nes"	--skip over the first 16Bytes of file
+	local filetype = "bin"
+	
 --initialize device i/o for NES
 	dict.io("IO_RESET")
 	dict.io("NES_INIT")
@@ -572,6 +584,9 @@ local function process(process_opts, console_opts)
 		init_mapper()
 
 		file = assert(io.open(dumpfile, "wb"))
+
+		--create header: pass open & empty file & rom sizes
+		create_header(file, prg_size, chr_size)
 
 		--dump cart into file
 		dump_prgrom(file, prg_size, false)
@@ -670,11 +685,28 @@ local function process(process_opts, console_opts)
 
 --program flashfile to the cart
 	if program then
+	
 
 		--open file
 		file = assert(io.open(flashfile, "rb"))
 		--determine if auto-doubling, deinterleaving, etc, 
 		--needs done to make board compatible with rom
+
+
+		if filetype == "nes" then
+		--advance past the 16byte header
+		--TODO set mirroring bit via ciccom
+			local buffsize = 1
+			local byte
+			local count = 1
+
+			for byte in file:lines(buffsize) do
+				local data = string.unpack("B", byte, 1)
+				--print(string.format("%X", data))
+				count = count + 1
+				if count == 17 then break end
+			end
+		end
 
 		--flash cart
 		flash_prgrom(file, prg_size, false)

@@ -18,6 +18,22 @@
 #endif
 
 
+#ifdef AVR_CORE
+void wdt_off(void)
+{
+//	__disable_interrupt();
+//	__watchdog_reset();
+	/* Clear WDRF in MCUSR */
+	MCUSR &= ~(1<<WDRF);
+	/* Write logical one to WDCE and WDE */
+	/* Keep old prescaler setting to prevent unintentional
+	 * time-out */
+	WDTCSR |= (1<<WDCE) | (1<<WDE);
+	/* Turn off WDT */
+	WDTCSR = 0x00;
+//	__enable_interrupt();
+}
+#endif
 
 int main(void)
 {
@@ -25,6 +41,7 @@ int main(void)
 #ifdef AVR_CORE
 	//set watch dog timer with 1 second timer
 	wdt_enable(WDTO_1S);
+//	wdt_off();
 	/* Even if you don't use the watchdog, turn it off here. On newer devices,
 	 * the status of the watchdog (on/off, period) is PRESERVED OVER RESET!
 	 */
@@ -177,9 +194,12 @@ int main(void)
 	while (1) {
 
 		//pet the watch doggie to keep him happy
+#ifdef STM_CORE
 		wdt_reset();	
+#endif
 
 #ifdef AVR_CORE
+		wdt_reset();	
 		//must call at regular intervals no longer than 50msec
 		//keeps 8Byte EP buffer moving from what I understand
 		usbPoll();	

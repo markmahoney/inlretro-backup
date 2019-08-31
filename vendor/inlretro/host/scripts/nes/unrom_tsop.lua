@@ -7,13 +7,15 @@ local dict = require "scripts.app.dict"
 local nes = require "scripts.app.nes"
 local dump = require "scripts.app.dump"
 local flash = require "scripts.app.flash"
+local files = require "scripts.app.files"
+local swim = require "scripts.app.swim"
 local buffers = require "scripts.app.buffers"
 
 -- file constants & variables
 local mapname = "UxROM"
 
 --local banktable_base = nil
-local banktable_base = 0xE473
+local banktable_base = 0xCC84
 		--Nomolos' bank table is at $CC84
 		--wr_bank_table(0xCC84, 32)
 		--Owlia bank table
@@ -63,20 +65,20 @@ local function prgrom_manf_id( debug )
 	--	    15 14 13 12
 	-- 0x5 = 0b  0  1  0  1	-> $5555
 	-- 0x2 = 0b  0  0  1  0	-> $2AAA
-	dict.nes("DISCRETE_EXP0_PRGROM_WR", 0x5555, 0xAA)
-	dict.nes("DISCRETE_EXP0_PRGROM_WR", 0x2AAA, 0x55)
-	dict.nes("DISCRETE_EXP0_PRGROM_WR", 0x5555, 0x90)
+	dict.nes("FLASH_3V_WR", 0x8AAA, 0xAA)
+	dict.nes("FLASH_3V_WR", 0x8555, 0x55)
+	dict.nes("FLASH_3V_WR", 0x8AAA, 0x90)
 
 	--read manf ID
 	local rv = dict.nes("NES_CPU_RD", 0x8000)
 	if debug then print("attempted read PRG-ROM manf ID:", string.format("%X", rv)) end
 
 	--read prod ID
-	rv = dict.nes("NES_CPU_RD", 0x8001)
+	rv = dict.nes("NES_CPU_RD", 0x8002)
 	if debug then print("attempted read PRG-ROM prod ID:", string.format("%X", rv)) end
 
 	--exit software
-	dict.nes("DISCRETE_EXP0_PRGROM_WR", 0x8000, 0xF0)
+	dict.nes("FLASH_3V_WR", 0x8000, 0xF0)
 
 end
 
@@ -135,12 +137,11 @@ end
 
 local function wr_prg_flash_byte(addr, value, bank, debug)
 
-	dict.nes("NES_CPU_WR", banktable_base, 0x00)
-	dict.nes("DISCRETE_EXP0_PRGROM_WR", 0x5555, 0xAA)
-	dict.nes("DISCRETE_EXP0_PRGROM_WR", 0x2AAA, 0x55)
-	dict.nes("DISCRETE_EXP0_PRGROM_WR", 0x5555, 0xA0)
-	dict.nes("NES_CPU_WR", banktable_base+bank, bank)
-	dict.nes("DISCRETE_EXP0_PRGROM_WR", addr, value)
+	dict.nes("FLASH_3V_WR", 0x8AAA, 0xAA)
+	dict.nes("FLASH_3V_WR", 0x8555, 0x55)
+	dict.nes("FLASH_3V_WR", 0x8AAA, 0xA0) --without unlock bypass
+
+	dict.nes("FLASH_3V_WR", addr, value)
 
 	local rv = dict.nes("NES_CPU_RD", addr)
 
@@ -214,7 +215,7 @@ end
 --but requires mapper specific firmware flashing functions
 local function flash_prgrom(file, rom_size_KB, debug)
 
-	init_mapper()
+	--init_mapper()
 	
 	--bank table should already be written
 	
@@ -234,7 +235,7 @@ local function flash_prgrom(file, rom_size_KB, debug)
 	local byte_str, data, readdata
 
 	--set the bank table address
-	dict.nes("SET_BANK_TABLE", banktable_base) 
+	--dict.nes("SET_BANK_TABLE", banktable_base) 
 	if debug then print("get banktable:", string.format("%X", dict.nes("GET_BANK_TABLE"))) end
 
 	while cur_bank < total_banks do
@@ -244,8 +245,9 @@ local function flash_prgrom(file, rom_size_KB, debug)
 		end
 
 		--select bank to flash
-		dict.nes("SET_CUR_BANK", cur_bank) 
-		if debug then print("get bank:", dict.nes("GET_CUR_BANK")) end
+		--dict.nes("SET_CUR_BANK", cur_bank) 
+		--if debug then print("get bank:", dict.nes("GET_CUR_BANK")) end
+		dict.nes("NES_CPU_WR", 0x8000, cur_bank) 
 
 		--program the entire bank's worth of data
 
@@ -261,10 +263,10 @@ local function flash_prgrom(file, rom_size_KB, debug)
 
 			--write the data
 			--SLOWEST OPTION: no firmware MMC3 specific functions 100% host flash algo:
-			--wr_prg_flash_byte(base_addr+byte_num, data, cur_bank, false)   --0.7KBps
+			wr_prg_flash_byte(base_addr+byte_num, data, cur_bank, false)   --0.7KBps
 			--EASIEST FIRMWARE SPEEDUP: 5x faster, create MMC3 write byte function:
 			--can use same write function as NROM
-			dict.nes("UNROM_PRG_FLASH_WR", base_addr+byte_num, data)  --3.8KBps (5.5x faster than above)
+			--dict.nes("UNROM_PRG_FLASH_WR", base_addr+byte_num, data)  --3.8KBps (5.5x faster than above)
 
 			if (verify) then
 				readdata = dict.nes("NES_CPU_RD", base_addr+byte_num)
@@ -279,7 +281,7 @@ local function flash_prgrom(file, rom_size_KB, debug)
 
 		--Have the device write a banks worth of data
 		--Same as NROM
-		flash.write_file( file, bank_size/1024, mapname, "PRGROM", false )
+		flash.write_file( file, bank_size/1024, "A53", "PRGROM", false )
 
 		cur_bank = cur_bank + 1
 	end
@@ -321,6 +323,20 @@ local function process(process_opts, console_opts)
 		print("EXP0 pull-up test:", dict.io("EXP0_PULLUP_TEST"))	
 
 		prgrom_manf_id(true)
+
+		--[[
+		--test reading back CIC version
+		dict.io("SWIM_INIT", "SWIM_ON_A0")	
+		--dict.io("SWIM_INIT", "SWIM_ON_EXP0")	
+		if swim.start() then
+			swim.read_stack()
+		else
+			print("ERROR trying to read back CIC signature stack data")
+		end
+		swim.stop_and_reset()
+		--]]
+		dict.io("IO_RESET")
+		dict.io("NES_INIT")
 	end
 
 --dump the cart to dumpfile
@@ -361,12 +377,13 @@ local function process(process_opts, console_opts)
 		init_mapper()
 
 		print("erasing PRG-ROM");
-		dict.nes("DISCRETE_EXP0_PRGROM_WR", 0x5555, 0xAA)
-		dict.nes("DISCRETE_EXP0_PRGROM_WR", 0x2AAA, 0x55)
-		dict.nes("DISCRETE_EXP0_PRGROM_WR", 0x5555, 0x80)
-		dict.nes("DISCRETE_EXP0_PRGROM_WR", 0x5555, 0xAA)
-		dict.nes("DISCRETE_EXP0_PRGROM_WR", 0x2AAA, 0x55)
-		dict.nes("DISCRETE_EXP0_PRGROM_WR", 0x5555, 0x10)
+		dict.nes("FLASH_3V_WR", 0x8AAA, 0xAA)
+		dict.nes("FLASH_3V_WR", 0x8555, 0x55)
+		dict.nes("FLASH_3V_WR", 0x8AAA, 0x80)
+		dict.nes("FLASH_3V_WR", 0x8AAA, 0xAA)
+		dict.nes("FLASH_3V_WR", 0x8555, 0x55)
+		dict.nes("FLASH_3V_WR", 0x8AAA, 0x10)
+
 		rv = dict.nes("NES_CPU_RD", 0x8000)
 
 		local i = 0
@@ -392,7 +409,7 @@ local function process(process_opts, console_opts)
 
 		--find bank table in the rom
 		--write bank table to all banks of cartridge
-		wr_bank_table(banktable_base, prg_size/16) --16KB per bank gives number of entries
+		--wr_bank_table(banktable_base, prg_size/16) --16KB per bank gives number of entries
 
 		--flash cart
 		flash_prgrom(file, prg_size, false)
@@ -414,6 +431,13 @@ local function process(process_opts, console_opts)
 
 		--close file
 		assert(file:close())
+
+		--compare the flash file vs post dump file
+		if (files.compare( verifyfile, flashfile, true ) ) then
+			print("\nSUCCESS! Flash verified")
+		else
+			print("\n\n\n FAILURE! Flash verification did not match")
+		end
 
 		print("DONE post dumping PRG-ROM")
 	end

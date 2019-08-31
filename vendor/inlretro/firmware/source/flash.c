@@ -1,5 +1,6 @@
 #include "flash.h"
 
+//TODO replace all use of this function with write_page_verify below
 uint8_t	write_page( uint8_t addrH, buffer *buff, write_funcptr wr_func )
 {
 	uint16_t cur = buff->cur_byte;
@@ -402,8 +403,19 @@ uint8_t flash_buff( buffer *buff ) {
 			if (buff->mapper == MMC3) {
 				write_page_verify( (0x80+addrH), buff, mmc3_prgrom_flash_wr);
 			}
+			if (buff->mapper == MMC3S) {
+				write_page_verify( (0x80+addrH), buff, mmc3s_prgrom_flash_wr);
+			}
+			//SOP-44
+			/*
 			if (buff->mapper == MMC4) {
 				write_page( (0x80+addrH), buff, mmc4_prgrom_sop_flash_wr);
+			}
+			*/
+			//TODO use mapper variant to differentiate between the two
+			//PLCC-32
+			if (buff->mapper == MMC4) {
+				write_page_verify( (0x80+addrH), buff, mmc4_prgrom_flash_wr);
 			}
 			if (buff->mapper == MM2) {
 				//addrH &= 0b1011 1111 A14 must always be low
@@ -430,6 +442,28 @@ uint8_t flash_buff( buffer *buff ) {
 				write_page_cninja( 0, addrH, 0xD555, 0xAAAA, buff, nes_cpu_wr, nes_cpu_rd );
 			}
 			if (buff->mapper == A53) {
+
+				//enter unlock bypass mode
+				nes_m2_high_wr( 0x8AAA, 0xAA );
+				nes_m2_high_wr( 0x8555, 0x55 );
+				nes_m2_high_wr( 0x8AAA, 0x20 );
+
+				write_page_verify( (0x80+addrH), buff, a53_tssop_prgrom_flash_wr);
+
+				//exit unlock bypass mode
+				nes_m2_high_wr( 0x8000, 0x90 );
+				nes_m2_high_wr( 0x8000, 0x00 );
+				//reset the flash chip, supposed to exit too
+				nes_m2_high_wr( 0x8000, 0xF0 );
+
+				//////////////
+				// OLD WAY, still used by PLCC flash
+				// need to uncomment and reflash firmware to get it to work
+				// Long term solution is to have a mapper variant for each
+				// or PRG-ROM part number type variable..?
+				//////////////
+				/*
+				
 				//write bank value to bank table
 				//page_num shift by 7 bits A15 >> A8(0)
 				bank = (buff->page_num)>>7;
@@ -446,11 +480,14 @@ uint8_t flash_buff( buffer *buff ) {
 				//break;
 				//WORKS PLCC Action53:
 				//had problems later not all bytes getting programmed..
-				//write_page_old( bank, (0x80 | addrH), 0xD555, 0xAAAA, buff, nes_cpu_wr, nes_cpu_rd );
+				write_page_old( bank, (0x80 | addrH), 0xD555, 0xAAAA, buff, nes_cpu_wr, nes_cpu_rd );
 				//TSSOP-28 action53:
-				write_page_a53( bank, (0x80 | addrH), buff, nes_cpu_wr, nes_cpu_rd );
+				//write_page_a53( bank, (0x80 | addrH), buff, nes_m2_high_wr, nes_cpu_rd );
+				//write_page_verify( (0x80+addrH), buff, mmc3_prgrom_flash_wr);
+				*/
 			}
 			if (buff->mapper == EZNSF) {
+				/*
 				//addrH &= 0b1000 1111 A14-12 must always be low
 				addrH &= 0x8F;
 				//write bank value to bank table
@@ -459,6 +496,19 @@ uint8_t flash_buff( buffer *buff ) {
 				nes_cpu_wr(0x5000, bank);	  //bank @ $8000-8FFF
 
 				write_page_tssop( bank, (0x80 | addrH), buff, nes_cpu_wr, nes_cpu_rd );
+				*/
+				//enter unlock bypass mode
+				nes_m2_high_wr( 0x9AAA, 0xAA );
+				nes_m2_high_wr( 0x9555, 0x55 );
+				nes_m2_high_wr( 0x9AAA, 0x20 );
+
+				write_page_verify( (0x90+addrH), buff, tssop_prgrom_flash_wr);
+
+				//exit unlock bypass mode
+				nes_m2_high_wr( 0x9000, 0x90 );
+				nes_m2_high_wr( 0x9000, 0x00 );
+				//reset the flash chip, supposed to exit too
+				nes_m2_high_wr( 0x9000, 0xF0 );
 			}
 			if (buff->mapper == GTROM) {
 				write_page_verify( (0x80+addrH), buff, gtrom_prgrom_flash_wr);

@@ -8,10 +8,20 @@ local nes = require "scripts.app.nes"
 local dump = require "scripts.app.dump"
 local flash = require "scripts.app.flash"
 local time = require "scripts.app.time"
+local buffers = require "scripts.app.buffers"
 
 -- file constants
+local mapname = "MAP30"
 
 -- local functions
+
+local function create_header( file, prgKB, chrKB )
+
+	local mirroring = nes.detect_mapper_mirroring()
+
+	--write_header( file, prgKB, chrKB, mapper, mirroring )
+	nes.write_header( file, prgKB, 0, op_buffer[mapname], mirroring)
+end
 
 --read PRG-ROM flash ID
 local function prgrom_manf_id( debug )
@@ -61,7 +71,10 @@ local function process(process_opts, console_opts)
 	local rv = nil
 	local file
 	-- TODO: Cleanup needed here, support chrrom, make this look more like other mapper scripts.
-	local size = console_opts["prg_rom_size_kb"]
+	local prg_size = console_opts["prg_rom_size_kb"]
+	local chr_size = console_opts["chr_rom_size_kb"]
+	local wram_size = console_opts["wram_size_kb"]
+	local mirror = console_opts["mirror"]
 	local filetype = "nes"
 	--local filetype = "bin"
 
@@ -89,6 +102,7 @@ local function process(process_opts, console_opts)
 		dict.nes("NES_PPU_WR", 0x0000, 0x33)
 
 		--read back
+		---[[
 		local test = true 
 		dict.nes("NES_CPU_WR", 0xC000, 0x00) --CHR bank 0
 		rv = dict.nes("NES_PPU_RD", 0x0000)
@@ -122,6 +136,7 @@ local function process(process_opts, console_opts)
 		if test then
 			print("CHR-RAM BANKING TEST PASSED")
 		end
+		--]]
 		
 
 	end
@@ -130,8 +145,11 @@ local function process(process_opts, console_opts)
 	if read then
 		file = assert(io.open(dumpfile, "wb"))
 
+		--create header: pass open & empty file & rom sizes
+		create_header(file, prg_size, chr_size)
+
 		--dump cart into file
-		dump.dumptofile( file, size, "MAP30", "PRGROM", true )
+		dump.dumptofile( file, prg_size, "MAP30", "PRGROM", true )
 
 		--close file
 		assert(file:close())
@@ -206,8 +224,8 @@ local function process(process_opts, console_opts)
 		--flash cart
 		print("\nFLASHING the PRG-ROM, will take ~20sec please wait...")
 		time.start()
-		flash.write_file( file, size, "MAP30", "PRGROM", false )
-		time.report(size)
+		flash.write_file( file, prg_size, "MAP30", "PRGROM", false )
+		time.report(prg_size)
 		--close file
 		assert(file:close())
 
@@ -220,7 +238,7 @@ local function process(process_opts, console_opts)
 		file = assert(io.open(verifyfile, "wb"))
 
 		--dump cart into file
-		dump.dumptofile( file, size, "MAP30", "PRGROM", true )
+		dump.dumptofile( file, prg_size, "MAP30", "PRGROM", true )
 
 		--close file
 		assert(file:close())

@@ -41,6 +41,23 @@ local function erase_main()
 
 end
 
+local function get_fw_appver(printit)
+
+	dict.bootload("SET_PTR_HI", 0x0800)
+	dict.bootload("SET_PTR_LO", 0x0800)	--application version 0x08000800 "AV00"
+	local av = dict.bootload("RD_PTR_OFFSET")
+	local ver = dict.bootload("RD_PTR_OFFSET",1)
+	local avstring = string.format("%s%s%s%s", string.char(av&0x00FF), string.char(av>>8),
+					string.char(ver&0x00FF), string.char(ver>>8))
+
+	if (printit) then
+		print("device firmware app ver:", avstring)
+	end
+
+	return avstring
+		
+end
+
 --skip is used because there is a ram pointer that often varies between builds
 --we're never going back to main so this mismatch is allowed
 local function update_firmware(newbuild, skip, forceup)
@@ -51,20 +68,18 @@ local function update_firmware(newbuild, skip, forceup)
 	--open new file first, don't bother continuing if can't find it.
 	file = assert(io.open(newbuild, "rb"))
 
+	--TODO REPORT build time stamp so can be certain it was a build just made if desired
+
 	--TODO read the fwupdater & app version from the provided file
 	--compare to current device and determine if they're compatible
-	--test let's tinker with SRAM
-	dict.bootload("SET_PTR_HI", 0x0800)
-	dict.bootload("SET_PTR_LO", 0x0800)	--application version 0x08000800 "AV00"
-	local av = dict.bootload("RD_PTR_OFFSET")
-	local ver = dict.bootload("RD_PTR_OFFSET",1)
-	local avstring = string.format("%s%s%s%s", string.char(av&0x00FF), string.char(av>>8),
-					string.char(ver&0x00FF), string.char(ver>>8))
+	print("current firmware prior to update:")
+	local avstring = get_fw_appver(true)	
 
-	if avstring == "AV00" then
-		print("application version:", avstring)
+	if string.sub(avstring, 1, 2) ~= "AV" then
+		print("current firmware is not versioned, may need to update to firmware v2.3 or later using STmicro dfuse")
+		print("may be running nightly build in which case can probably ignore")
 	else
-		print("app version", avstring, "unknown, may need to update to firmware v2.3 or later using STmicro dfuse")
+		print("current firmware", avstring, "expected to support USB update process")
 	end
 
 
@@ -235,6 +250,7 @@ end
 
 -- functions other modules are able to call
 fwupdate.update_firmware = update_firmware
+fwupdate.get_fw_appver = get_fw_appver
 
 -- return the module's table
 return fwupdate

@@ -16,13 +16,17 @@ uint8_t	emulate_nes_cpu_rd( uint16_t addr );
 uint8_t	nes_cpu_rd( uint16_t addr );
 void	nes_cpu_wr( uint16_t addr, uint8_t data );
 void	nes_m2_low_wr( uint16_t addr, uint8_t data );
+//TODO combine m2_low & m2_high into one function with an arg
+void	nes_m2_high_wr( uint16_t addr, uint8_t data );
 uint8_t	nes_ppu_rd( uint16_t addr );
 void	nes_ppu_wr( uint16_t addr, uint8_t data );
 uint8_t	nes_dualport_rd( uint16_t addr );
 void	nes_dualport_wr( uint16_t addr, uint8_t data );
 //uint8_t	ciram_a10_mirroring( void );
 uint8_t nes_cpu_page_rd_poll( uint8_t *data, uint8_t addrH, uint8_t first, uint8_t last, uint8_t poll );
+uint8_t nes_cpu_page_rd_toggle( uint8_t *data, uint8_t addrH, uint8_t first, uint8_t last, uint8_t poll );
 uint8_t nes_ppu_page_rd_poll( uint8_t *data, uint8_t addrH, uint8_t first, uint8_t last, uint8_t poll );
+uint8_t nes_ppu_page_rd_toggle( uint8_t *data, uint8_t addrH, uint8_t first, uint8_t len, uint8_t poll );
 uint8_t nes_dualport_page_rd_poll( uint8_t *data, uint8_t addrH, uint8_t first, uint8_t len, uint8_t poll );
 
 void	mmc1_wr( uint16_t addr, uint8_t data, uint8_t reset );
@@ -34,13 +38,18 @@ void	mmc1_chrrom_flash_wr( uint16_t addr, uint8_t data );
 void 	unrom_prgrom_flash_wr( uint16_t addr, uint8_t data );
 void 	cnrom_chrrom_flash_wr( uint16_t addr, uint8_t data );
 uint8_t	mmc3_prgrom_flash_wr( uint16_t addr, uint8_t data );
+uint8_t	mmc3s_prgrom_flash_wr( uint16_t addr, uint8_t data );
 void	mmc3_chrrom_flash_wr( uint16_t addr, uint8_t data );
 void 	mmc4_prgrom_sop_flash_wr( uint16_t addr, uint8_t data );
+uint8_t	mmc4_prgrom_flash_wr( uint16_t addr, uint8_t data );
+void 	mmc2_prgrom_flash_wr( uint16_t addr, uint8_t data );
 void 	mmc4_chrrom_flash_wr( uint16_t addr, uint8_t data );
 void 	cdream_chrrom_flash_wr( uint16_t addr, uint8_t data );
 uint8_t	map30_prgrom_flash_wr( uint16_t addr, uint8_t data );
 uint8_t	gtrom_prgrom_flash_wr( uint16_t addr, uint8_t data );
 void 	ppu_page_wr_lfsr( uint16_t addr, uint8_t data );
+uint8_t a53_tssop_prgrom_flash_wr( uint16_t addr, uint8_t data );
+uint8_t tssop_prgrom_flash_wr( uint16_t addr, uint8_t data );
 
 
 

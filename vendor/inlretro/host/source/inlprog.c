@@ -330,7 +330,6 @@ int main(int argc, char *argv[])
 	}
 
 	if ((strcmp("gba", opts->console_name) == 0) ||
-	    (strcmp("genesis", opts->console_name) == 0) ||
 		(strcmp("n64", opts->console_name) == 0)) {
 		if (opts->rom_size_kbyte <= 0) {
 			printf("ROM size must be greater than 0 kilobytes.\n");

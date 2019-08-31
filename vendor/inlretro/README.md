@@ -1,5 +1,15 @@
-
+Table of Contents:
 ===================================
+* [Installing Device Drivers](#INSTALLING-DEVICE-DRIVERS)
+  * [Easy Rippings](#EASY-RIPPINGS)
+* [Running the Host Application](#RUNNING-THE-HOST-APPLICATION)
+* [Updating Device Firmware](#UPDATING-DEVICE-FIRMWARE)
+  * [STM32 ARM based device versions "INLretro" V2.0 and later](#STM32-ARM-BASED-DEVICE-VERSIONS-"INLRETRO"-v2.0-AND-LATER)
+  * [AVR based devices versions "KAZZO" V1.4 and eariler](#AVR-based-devices-versions-"KAZZO"-V1.4-and-eariler)
+* [Software & Firmware Building](#SOFTWARE-&-FIRMWARE-BUILDING)
+  * [Linux/Mac](#Linux/Mac)
+  * [Windows](#Windows)
+
 INSTALLING DEVICE DRIVERS:
 ===================================
 
@@ -20,9 +30,13 @@ If it worked properly you'll get a "install successful" page, click FINISH.
 In windows you should be able to see "INLretro-prog" listed in "devices and printers" from
 the control panel.
 
+Easy Rippings
+-----------------------------------
 
+If you're only looking to rip your own carts, you can stop here and look at the [EasyRipping](./docs/EasyRippingGuide.md) guide.
 
-===================================
+If you recently bought your INL-Retro, you shouldn't have to update firmware, but below are steps to update the firmware when future versions are released. If you have an older version, it's recommended you update the firmware first.
+
 RUNNING THE HOST APPLICATION:
 ===================================
 
@@ -50,14 +64,13 @@ USB connector on the INLretro programmer/dumper to reset the device, and try aga
 
 
 
-===================================
 UPDATING DEVICE FIRMWARE
 ===================================
 
-
-----------------------------------------------------------
 STM32 ARM based device versions "INLretro" V2.0 and later
-----------------------------------------------------------
+-----------------------------------
+
+
 If you purchased your device in 2018 or later you have this version
 This includes devices aquired with NESmaker kits.
 
@@ -169,6 +182,19 @@ purchased it.
    Plug the USB cable in while those two pads are shorted together.
    It might help to have a freind plug in the USB cable while you short the pins.
    Once it's plugged in you don't have to keep the pins shorted anymore.
+
+-PCB VERSION 2.1 released Feb 2019
+   This PCB version replaced the BL/RUN slide/toggle switch with a 
+   momentary button.  It's otherwise similar to v2.0 above.  This
+   version also started coming with a 3D printed chipset enclosure
+   by default.  The bootloader (BL) switch is closest to the edge
+   of the PCB, and the 3D printed button is recessed.  The Reset
+   switch is closer to the center of the PCB and is not recessed.
+   To enter bootloader mode, hold the BL switch while plugging in
+   the USB cable.  You can release the BL button after the device
+   is recognized by your PC.  You can tap the reset button to exit
+   bootloader mode.  Effectively the position of the BL switch only
+   matters when the device powers up, or boots from reset.  
 
 -PCB VERSION 2.0N smaller device with NES Connector alone
    These are the majority of the basic NESmaker kickstarter kits.
@@ -291,10 +317,9 @@ LINUX DFU-UTIL STEPS:
   sudo dfu-util -d 0483:* -a 0 -D INLretro6_PCBv2_0_FWv2_03_01.dfu
 
 
-
-----------------------------------------------------------
 AVR based devices versions "KAZZO" V1.4 and eariler
-----------------------------------------------------------
+-----------------------------------
+
 If you purchased your device in 2017 or earlier you have this version
 This should also apply if you made your own kazzo based on the open
 source design.  Although I can't assure this software works with
@@ -384,35 +409,27 @@ and the device should be running the latest firmware ready to use the latest sof
 
 
 
-===================================
 SOFTWARE & FIRMWARE BUILDING
 ===================================
 Some build instructions follow, but they shouldn't be needed if you're running the
 released firmware on Windows.
 
-This section needs some updating....  Don't be afraid to contact me if you'd like to build
-your own firmware.  Or are having issues building the host application on linux/mac
 
-
-===================
-Linux
+Linux/Mac
 ===================
 
 HOST APPLICATION:
 install libusb:
 sudo apt-get install libusb-1.0-0-dev
 
-make:
-gcc -I include inlretro.c -o inlretro -lusb-1.0
-or just run make unix from host folder.
-As noted in windows instructions below, lua must be built first
--cd host/source/lua, make o a, then make from host/source
+make from host folder:
+make unix
 
 run:
 ./inlretro
 
 
-AVR FIRMWARE:
+If you want to build your own AVR FIRMWARE:
 install avr-gcc and avr-libc:
 sudo apt-get install gcc-avr
 sudo apt-get install avr-libc
@@ -457,45 +474,40 @@ STM32 FIRMWARE:
 Need arm-none-eabi-gcc
 
 
-===================
 Windows
 ===================
 HOST APPLICATION:
+
 Install minGW:
-	download: http://www.mingw.org/wiki/Getting_Started
-	launch: Installation manager default settings
-	select: mingw32-base 
-		(primary need is gcc)
-	select: msys-base 
-		(primary need is make, basic unix commands are nice to have)
-	optional: msys-openssh 
-		(helpful if using gitlab to pull updates)
-		lua for host app dev
-	minGW utilities can be easily added or removed at any time with minGW installation manager.
-	Add C:\MinGW\bin & C:\MinGW\msys\1.0\bin to your PC's enviroment PATH variable
-		-control panel search: "edit system environment variables
-		-System properties window, Advanced tab, click Environment Variables...
-		-System Variables pane: Select and edit "PATH"
-		-Add new entries below assuming you used default location for minGW
-			C:\MinGW\bin
-			C:\MinGW\msys\1.0\bin
-		-I had troubles once with cp (copy) commands in Makefile
+
+* download: http://www.mingw.org/wiki/Getting_Started
+* launch: Installation manager default settings
+* select: mingw32-base 
+  * (primary need is gcc)
+* select: msys-base 
+  * (primary need is make, basic unix commands are nice to have)
+* optional: msys-openssh 
+  * (helpful if using gitlab to pull updates)
+  * lua for host app dev
+* minGW utilities can be easily added or removed at any time with minGW installation manager.
+* Add C:\MinGW\bin & C:\MinGW\msys\1.0\bin to your PC's enviroment PATH variable
+  * -control panel search: "edit system environment variables
+  * -System properties window, Advanced tab, click Environment Variables...
+  * -System Variables pane: Select and edit "PATH"
+  * -Add new entries below assuming you used default location for minGW
+    * C:\MinGW\bin
+    * C:\MinGW\msys\1.0\bin
+  * -I had troubles once with cp (copy) commands in Makefile
 causing a crash, even though the commands works outside of make.  Bumping the
 mingw path variables to the top of all my path variables corrected this issue.
 So that might help if you have similar issues...
 	
 Now host app can be built from windows command prompt command make when in host directory
 
-Currently setup to compile lua separate from host app.  Need to get better at writing makefiles..
-But whatever it works and saves ~12sec of compile time with current setup.
--go to host/source/lua
--make o a
--go back to host
--make
-This way lua is compiled separately using it's provided make file.
-make clean still deletes lua object files, so this process must be reperformed if cleaned.
+* go to host
+* make all
 
-AVR FIRMWARE:
+If you want to build your own AVR FIRMWARE:
 Download and Install WinAVR
 	optional: install programmer's notepad has handy feature to make clean, all, program in tools menu
 		this is nifty if you are scared of the command prompt for some strange reason...

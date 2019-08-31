@@ -7,11 +7,19 @@ local dict = require "scripts.app.dict"
 local nes = require "scripts.app.nes"
 local dump = require "scripts.app.dump"
 local flash = require "scripts.app.flash"
+local buffers = require "scripts.app.buffers"
 
 -- file constants
 local mapname = "FME7"
 
 -- local functions
+
+local function create_header( file, prgKB, chrKB )
+
+	--write_header( file, prgKB, chrKB, mapper, mirroring )
+	nes.write_header( file, prgKB, chrKB, op_buffer[mapname], 0)
+end
+
 
 --disables WRAM, selects Vertical mirroring
 --sets up CHR-ROM flash PT0 for DATA, Commands: $5555->$1555  $2AAA->$1AAA 
@@ -599,6 +607,9 @@ local function process(process_opts, console_opts)
 		init_mapper()
 
 		file = assert(io.open(dumpfile, "wb"))
+
+		--create header: pass open & empty file & rom sizes
+		create_header(file, prg_size, chr_size)
 
 		--dump cart into file
 		dump_prgrom(file, prg_size, false)

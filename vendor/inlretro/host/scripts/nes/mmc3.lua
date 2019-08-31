@@ -7,11 +7,21 @@ local dict = require "scripts.app.dict"
 local nes = require "scripts.app.nes"
 local dump = require "scripts.app.dump"
 local flash = require "scripts.app.flash"
+local buffers = require "scripts.app.buffers"
+local time = require "scripts.app.time"
+local files = require "scripts.app.files"
 
 -- file constants
 local mapname = "MMC3"
 
 -- local functions
+
+local function create_header( file, prgKB, chrKB )
+
+	--write_header( file, prgKB, chrKB, mapper, mirroring )
+	nes.write_header( file, prgKB, chrKB, op_buffer[mapname], 0)
+end
+
 
 --disables WRAM, selects Vertical mirroring
 --sets up CHR-ROM flash PT0 for DATA, Commands: $5555->$1555  $2AAA->$1AAA 
@@ -184,6 +194,7 @@ local function dump_prgrom( file, rom_size_KB, debug )
 	local num_reads = rom_size_KB / KB_per_read
 	local read_count = 0
 	local addr_base = 0x08	-- $8000
+	--TODO update to NES_CPU_PAGE instead of NES_CPU_4KB
 
 	while ( read_count < num_reads ) do
 
@@ -414,7 +425,7 @@ local function flash_prgrom(file, rom_size_KB, debug)
 
 		--Have the device write a banks worth of data
 		--FAST!  13sec for 512KB = 39KBps
-		flash.write_file( file, 8, mapname, "PRGROM", false )
+		flash.write_file( file, bank_size/1024, mapname, "PRGROM", false )
 
 		cur_bank = cur_bank + 1
 	end
@@ -524,6 +535,10 @@ local function process(process_opts, console_opts)
 	local chr_size = console_opts["chr_rom_size_kb"]
 	local wram_size = console_opts["wram_size_kb"]
 
+
+	local filetype = "nes"
+	--local filetype = "bin"
+
 --initialize device i/o for NES
 	dict.io("IO_RESET")
 	dict.io("NES_INIT")
@@ -576,6 +591,9 @@ local function process(process_opts, console_opts)
 		init_mapper()
 
 		file = assert(io.open(dumpfile, "wb"))
+
+		--create header: pass open & empty file & rom sizes
+		create_header(file, prg_size, chr_size)
 
 		--dump cart into file
 		dump_prgrom(file, prg_size, false)
@@ -670,6 +688,23 @@ local function process(process_opts, console_opts)
 		file = assert(io.open(flashfile, "rb"))
 		--determine if auto-doubling, deinterleaving, etc, 
 		--needs done to make board compatible with rom
+	
+
+		if filetype == "nes" then
+		--advance past the 16byte header
+		--TODO set mirroring bit via ciccom
+			local buffsize = 1
+			local byte
+			local count = 1
+
+			for byte in file:lines(buffsize) do
+				local data = string.unpack("B", byte, 1)
+				--print(string.format("%X", data))
+				count = count + 1
+				if count == 17 then break end
+			end
+		end
+
 
 		flash_prgrom(file, prg_size, true)
 		flash_chrrom(file, chr_size, true)
@@ -688,14 +723,25 @@ local function process(process_opts, console_opts)
 
 		file = assert(io.open(verifyfile, "wb"))
 
+		--create header: pass open & empty file & rom sizes
+		create_header(file, prg_size, chr_size)
+
+		print("DONE post dumping PRG & CHR ROMs")
 		--dump cart into file
+		time.start()
 		dump_prgrom(file, prg_size, false)
 		dump_chrrom(file, chr_size, false)
+		time.report(prg_size+chr_size)
 
 		--close file
 		assert(file:close())
 
-		print("DONE post dumping PRG & CHR ROMs")
+		--compare the flash file vs post dump file
+		if (files.compare( verifyfile, flashfile, true ) ) then
+			print("\nSUCCESS! Flash verified")
+		else
+			print("\n\n\n FAILURE! Flash verification did not match")
+		end
 	end
 
 	dict.io("IO_RESET")

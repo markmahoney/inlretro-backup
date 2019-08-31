@@ -9,11 +9,21 @@ local dump = require "scripts.app.dump"
 local flash = require "scripts.app.flash"
 local swim = require "scripts.app.swim"
 local ciccom = require "scripts.app.ciccom"
+local buffers = require "scripts.app.buffers"
 
 -- file constants
 local mapname = "NROM"
 
 -- local functions
+
+local function create_header( file, prgKB, chrKB )
+
+	local mirroring = nes.detect_mapper_mirroring()
+
+	--write_header( file, prgKB, chrKB, mapper, mirroring )
+	nes.write_header( file, prgKB, chrKB, op_buffer[mapname], mirroring)
+end
+
 
 --read PRG-ROM flash ID
 local function prgrom_manf_id( debug )
@@ -85,9 +95,10 @@ end
 --dump the PRG ROM
 local function dump_prgrom( file, rom_size_KB, debug )
 
-	--PRG-ROM dump all 32KB, most of this code is overkill for NROM.
-	--	but follows same format as banked mappers
 	local KB_per_read = 32
+	-- Handle 16KB nroms.
+	if rom_size_KB < KB_per_read then KB_per_read = rom_size_KB end
+
 	local num_reads = rom_size_KB / KB_per_read
 	local read_count = 0
 	local addr_base = 0x08	-- $8000
@@ -121,6 +132,18 @@ local function dump_chrrom( file, rom_size_KB, debug )
 
 		read_count = read_count + 1
 	end
+
+	--Zorchenhimer had issues dumping "Popeye no Eigo Asobi" http://bootgod.dyndns.org:7777/profile.php?id=3867
+	--which appears to have 2 transistors with connections to PPU A12 and CHR-ROM /OE.?
+	--not sure what's going on there, but slowly dumping one byte at at time instead of 128Byte read bursts
+	--with normal dumping method above corrected the issue.
+	--[[
+	for i = 0x0000,0x1FFF,1 do
+		val = dict.nes("NES_PPU_RD", i)
+		file:write(string.char(val))
+	end
+        file:flush()
+	--]]
 
 end
 
@@ -289,6 +312,9 @@ local function process(process_opts, console_opts)
 	local wram_size = console_opts["wram_size_kb"]
 	local mirror = console_opts["mirror"]
 
+	local filetype = "nes"
+	--local filetype = "bin"
+
 --initialize device i/o for NES
 	dict.io("IO_RESET")
 	dict.io("NES_INIT")
@@ -299,10 +325,22 @@ local function process(process_opts, console_opts)
 
 		nes.detect_mapper_mirroring(true)
 		print("EXP0 pull-up test:", dict.io("EXP0_PULLUP_TEST"))	
+
+	--	dict.io("SWIM_INIT", "SWIM_ON_A0")	
+	--	if swim.start(true) then
+
+	--		swim.read_stack()
+
+	--	else
+	--		print("ERROR trying to read back CIC signature stack data")
+	--	end
+	--	swim.stop_and_reset()
+
 		--nes.read_flashID_prgrom_exp0(true)
 		prgrom_manf_id(true)
 		--nes.read_flashID_chrrom_8K(true)
 		chrrom_manf_id(true)
+
 	end
 
 --change mirroring
@@ -346,6 +384,9 @@ local function process(process_opts, console_opts)
 		--init_mapper()
 		
 		file = assert(io.open(dumpfile, "wb"))
+
+		--create header: pass open & empty file & rom sizes
+		create_header(file, prg_size, chr_size)
 
 		--dump cart into file
 		dump_prgrom(file, prg_size, false)
@@ -407,6 +448,22 @@ local function process(process_opts, console_opts)
 		file = assert(io.open(flashfile, "rb"))
 		--determine if auto-doubling, deinterleaving, etc, 
 		--needs done to make board compatible with rom
+
+		if filetype == "nes" then
+		--advance past the 16byte header
+		--TODO set mirroring bit via ciccom
+			local buffsize = 1
+			local byte
+			local count = 1
+
+			for byte in file:lines(buffsize) do
+				local data = string.unpack("B", byte, 1)
+				--print(string.format("%X", data))
+				count = count + 1
+				if count == 17 then break end
+			end
+		end
+
 		--flash cart
 		--flash.write_file( file, 32, "NROM", "PRGROM", true )
 		--flash.write_file( file, 8, "NROM", "CHRROM", true )
