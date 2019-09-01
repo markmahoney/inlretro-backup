@@ -11,10 +11,12 @@ A Python-based CLI for creating emulatable backups from your own cartridges usin
 You'll need to have `virtualenv` installed. On Unix-like systems with Python installed you should be able to do the following:
 
 ```sh
-easy_install virtualenv
+[sudo] easy_install virtualenv
 ```
 
 You will also need to be able to compile the host source code for the INLretro. That entire codebase is included as a subtree in this repo, which may or may not have been a dumb choice on my part, but regardless, see the INLretro's [README](vendor/inlretro/README) and [host Makefile unix target](vendor/inlretro/host/Makefile) for details.
+
+Also make sure you have libusb installed. On Mac systems you can just do `brew install libusb`.
 
 ## Setup
 
@@ -39,7 +41,7 @@ You can run `deactivate` when you're done using the backup utility to disable vi
 
 NES/Famicom cartridge support is tethered to the mapper sets supported by the INLretro, though that list is pretty substantial at this point. However, you won't have much luck backing up weirdo games yet.
 
-As of January 27, 2019, you may also need to manually update the INLretro's firmware to a nightly verison to support cartidge types beyond NES/Famicom. If you have the 2.3 firmware installed, you can uncomment the line `fwupdate.update_firmware("../firmware/build_stm6/inlretro_stm.bin", 0x6DC, false) --nightly build` in the [host inlretro.lua file](vendor/inlretro/host/scripts/inlretro.lua), then run `inlretro` from the `vendor/inlretro/host/scripts` directory. I believe future updates to the host software will begin auto-updating firmware versions, at which point this suggestion will be obsolete.
+As of August 2019, you may also need to manually update the INLretro's firmware to a newer verison to support cartidge types beyond NES/Famicom. If you have the 2.3 firmware installed, you can run `inlretro -s scripts\inlretro_inl6fwupdate.lua` from the [host directory](vendor/inlretro/host) for a hassle-free update experience. [See commit message for this update](https://gitlab.com/InfiniteNesLives/INL-retro-progdump/commit/cc4aa6c67cebd5a2845965339881777ed5b474b7) for more info.
 
 If you _don't_ have the 2.3 firmware installed, you'll have to follow directions in the [INLretro README](vendor/inlretro/README) to update to 2.3 first.
 
